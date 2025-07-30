@@ -7,9 +7,7 @@ const CidadesController = require("../controllers/cidades");
 
 const FarmaciasController = require("../controllers/farmacias");
 
-const uploadImagefarmacias = require("../../middlewares/uploadImageFarmacias");
 
-// const uploadImageMedicamentos = require("../middlewares/uploadImageMedicamentos");
 
 const MedicamentosController = require("../controllers/medicamentos");
 const MedPrecoController = require("../controllers/medpreco");
@@ -37,11 +35,6 @@ router.patch("/farmacias/:farm_id", FarmaciasController.editarFarmacias); // Edi
 router.delete("/farmacias/:farm_id", FarmaciasController.apagarFarmacias); // Apagar farmácias
 //router.get('/farmacias/:farm_id', FarmaciasController.listarUnicaFarmacia); // listar unica farmacia
 router.get("/farmacias/:farm_id", ListarUnicoController.listarUnicaFarmacia); // listar unica farmacia
-router.post(
-  "/produtos",
-  uploadImagefarmacias.single("img"),
-  FarmaciasController.cadastrarFarmacias
-);
 
 // Routes para medicamentos
 router.get("/medicamentos", MedicamentosController.listarMedicamentos); // Listar medicamentos
