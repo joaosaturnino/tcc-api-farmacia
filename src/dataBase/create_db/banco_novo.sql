@@ -43,8 +43,8 @@ CREATE TABLE usuarios (
 CREATE TABLE funcionarios (
     func_id INT AUTO_INCREMENT PRIMARY KEY,
     cargo VARCHAR(50) NOT NULL,
-    usu_id INT NOT NULL,
-    FOREIGN KEY (usu_id) REFERENCES usuarios(usu_id)
+    farm_id INT NOT NULL,
+    FOREIGN KEY (farm_id) REFERENCES farmacia(farm_id)
 );
 
 -- Farmácia
@@ -57,9 +57,7 @@ CREATE TABLE farmacia (
     farm_senha VARCHAR(48) NOT NULL,
     cnpj CHAR(14) NOT NULL UNIQUE,
     farm_logo VARCHAR(255),
-    func_id INT,
     cid_id INT,
-    FOREIGN KEY (func_id) REFERENCES funcionarios(func_id),
     FOREIGN KEY (cid_id) REFERENCES cidade(cidade_id)
 );
 
@@ -111,4 +109,18 @@ CREATE TABLE avaliacao (
     FOREIGN KEY (usu_id) REFERENCES usuarios(usu_id),
     FOREIGN KEY (far_id) REFERENCES farmacia(farm_id)
 );
+
+-- Favoritos
+CREATE TABLE favoritos (
+    fav_id int(11) NOT NULL AUTO_INCREMENT,
+    usu_id int(11) NOT NULL,
+    far_id int(11) NOT NULL,
+    med_id int(11) NOT NULL,
+    medpreco_id int(11) NOT NULL,
+    CONSTRAINT Favoritos FOREIGN KEY (usu_id) REFERENCES usuarios ( usu_id),
+    CONSTRAINT Favoritos FOREIGN KEY (far_id) REFERENCES farmacia (far_id),
+    CONSTRAINT Favoritos FOREIGN KEY (med_id) REFERENCES medicamento (med_id),
+    CONSTRAINT Favoritos FOREIGN KEY (medpreco_id) REFERENCES medpreco (medpreco_id)
+);
+
 
