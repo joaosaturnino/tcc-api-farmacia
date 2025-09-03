@@ -6,6 +6,9 @@ const router = express.Router();
 const CidadesController = require("../controllers/cidades");
 
 const FarmaciasController = require("../controllers/farmacias");
+const FavoritosController = require("../controllers/favoritos")
+const UsuariosController = require("../controllers/usuarios")
+const AvaliacaoController=  require("../controllers/avaliacao")
 
 
 
@@ -30,7 +33,7 @@ router.get("/cidade/cidadelimit", ListarUnicoController.listarLimiteCidade); // 
 
 // Routes para farmácias
 router.get("/farmacias", FarmaciasController.listarFarmacias); // Listar farmácias
-// router.post("/farmacias", FarmaciasController.cadastrarFarmacias); // Cadastrar farmácias
+router.post("/farmacias", FarmaciasController.cadastrarFarmacias); // Cadastrar farmácias
 router.patch("/farmacias/:farm_id", FarmaciasController.editarFarmacias); // Editar farmácias
 router.delete("/farmacias/:farm_id", FarmaciasController.apagarFarmacias); // Apagar farmácias
 //router.get('/farmacias/:farm_id', FarmaciasController.listarUnicaFarmacia); // listar unica farmacia
@@ -39,6 +42,7 @@ router.get("/farmacias/:farm_id", ListarUnicoController.listarUnicaFarmacia); //
 // Routes para medicamentos
 router.get("/medicamentos", MedicamentosController.listarMedicamentos); // Listar medicamentos
 // Cadastrar medicamentos
+router.post("/medicamentos", MedicamentosController.cadastrarMedicamentos);
 router.patch(
   "/medicamentos/:med_id",
   MedicamentosController.editarMedicamentos
@@ -89,5 +93,13 @@ router.get(
   "/tipoproduto/:tipo_id",
   ListarUnicoController.listarUnicoTipoProduto
 ); // listar unico tipo de produto
+
+router.get("/favoritos", FavoritosController.listarFavoritos); // listar favoritos
+router.post("/favoritos", FavoritosController.cadastrarFavoritos); // cadastrar favoritos
+router.delete("/favoritos/:fav_id", FavoritosController.apagarFavoritos); //apagar favoritos
+
+
+router.get("/usuarios", UsuariosController.listarUsuario);
+router.patch("/avaliacao/:ava_id", AvaliacaoController.editarAvaliacao); // Editar avaliacao
 
 module.exports = router;

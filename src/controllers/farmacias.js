@@ -9,7 +9,7 @@ module.exports = {
   async listarFarmacias(request, response) {
     try {
       // instrução sql para listar farmácias
-      const sql = 'SELECT farm_id, farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, farm_logo, func_id, cid_id FROM farmacia;';
+      const sql = 'SELECT farm_id, farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, farm_logo, cid_id FROM farmacia;';
       // executa a instrução de listagem no banco de dados
       const [rows] = await db.query(sql)
       // exibe o resultado da consulta
@@ -33,11 +33,11 @@ module.exports = {
   async cadastrarFarmacias(request, response) {
     try {
       // parametros passados via corpo de requisição
-      const { farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, farm_logo, func_id, cid_id} = request.body;
+      const { farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, farm_logo, cid_id} = request.body;
       // instrução sql para inserção
-      const sql = 'INSERT INTO farmacia (farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, farm_logo, func_id, cid_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);';
+      const sql = 'INSERT INTO farmacia (farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, farm_logo, cid_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?);';
       // definição de array com paramentros que receberão os valores do front-end
-      const values = [farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, farm_logo, func_id, cid_id];
+      const values = [farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, farm_logo, cid_id];
       // executa a instrução de inserção no banco de dados
       const [rows] = await db.query(sql, values);
       // exibe o id do registro inserido
@@ -61,13 +61,13 @@ module.exports = {
   async editarFarmacias(request, response) {
     try {
       // parametros passados via corpo de requisição
-      const { farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, farm_logo, func_id, cid_id} = request.body;
+      const { farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, farm_logo, cid_id} = request.body;
       // parametros passados via url
       const { farm_id } = request.params;
       // instrução sql para edição
-      const sql = 'UPDATE farmacia SET farm_nome = ?, farm_endereco = ?, farm_telefone = ?, farm_email = ?, farm_senha = ?, cnpj = ?, farm_logo = ?, func_id = ?, cid_id = ? WHERE farm_id = ?;';
+      const sql = 'UPDATE farmacia SET farm_nome = ?, farm_endereco = ?, farm_telefone = ?, farm_email = ?, farm_senha = ?, cnpj = ?, farm_logo = ?, cid_id = ? WHERE farm_id = ?;';
       // definição de array com paramentros que receberão os valores do front-end
-      const values = [farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, farm_logo, func_id, cid_id, farm_id];
+      const values = [farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, farm_logo, cid_id, farm_id];
       // executa a instrução de edição no banco de dados
       const [rows] = await db.query(sql, values);
       // exibe o id do registro editado
@@ -121,7 +121,7 @@ module.exports = {
       // parametros passados via url
       const { farm_id } = request.params;
       // instrução sql para listar farnacias
-      const sql = 'SELECT farm_id, farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, farm_logo, func_id, cid_id FROM farmacia WHERE farm_id = ?;';
+      const sql = 'SELECT farm_id, farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, farm_logo, cid_id FROM farmacia WHERE farm_id = ?;';
       // definição de array com parametros que receberão os valores do front-end
       const values = [farm_id];
       // executa a instrução de listagem no banco de dados

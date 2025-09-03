@@ -9,7 +9,7 @@ module.exports = {
   async listarFuncionario(request, response) {
     try {
       // instrução sql para listar funcionarios
-      const sql = 'SELECT func_id, cargo, usu_id FROM funcionarios;';
+      const sql = 'SELECT func_id, farm_id FROM funcionarios;';
       // executa a instrução de listagem no banco de dados
       const [rows] = await db.query(sql);
       // exibe o resultado da consulta
@@ -33,11 +33,11 @@ module.exports = {
   async cadastrarFuncionario(request, response) {
     try {
       // parametros passados via corpo de requisição
-      const {cargo, usu_id} = request.body;
+      const {cargo, farm_id} = request.body;
       // instrução sql para inserção
-      const sql = 'INSERT INTO funcionarios (cargo, usu_id) VALUES (?, ?);';
+      const sql = 'INSERT INTO funcionarios (cargo, farm_id) VALUES (?, ?);';
       // definição de array com paramentros que receberão os valores do front-end
-      const values = [cargo, usu_id];
+      const values = [cargo, farm_id];
       // executa a instrução de inserção no banco de dados
       const [rows] = await db.query(sql, values)
       // exibe o id do registro inserido
@@ -61,13 +61,13 @@ module.exports = {
   async editarFuncionario(request, response) {
     try {
       // parametros passados via corpo de requisição
-      const {cargo, usu_id} = request.body;
+      const {cargo, farm_id} = request.body;
       // parametros passados via url
       const {func_id} = request.params;
       // instrução sql para edição
-      const sql = 'UPDATE funcionarios SET cargo = ?, usu_id = ? WHERE func_id = ?;';
+      const sql = 'UPDATE funcionarios SET cargo = ?, farm_id = ? WHERE func_id = ?;';
       // definição de array com paramentros que receberão os valores do front-end
-      const values = [cargo, usu_id, func_id];
+      const values = [cargo, farm_id, func_id];
       // executa a instrução de edição no banco de dados
       const [rows] = await db.query(sql, values);
       // exibe o id do registro editado

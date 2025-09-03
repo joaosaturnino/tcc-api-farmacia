@@ -13,12 +13,12 @@ router.patch(
   "/farmaceutica/:forma_id",
   FarmaceuticasController.editarFarmaceutica
 ); // Editar farmaceuticas
-router.delete("/farmaceutica", FarmaceuticasController.apagarFarmaceutica); // Apagar farmaceuticas
+router.delete("/farmaceutica/:forma_id", FarmaceuticasController.apagarFarmaceutica); // Apagar farmaceuticas
 
 // Routes para funcionarios
 router.get("/funcionario", FuncionariosController.listarFuncionario); // Listar funcionarios
 router.post("/funcionario", FuncionariosController.cadastrarFuncionario); // Cadastrar funcionarios
-router.patch("/funcionario", FuncionariosController.editarFuncionario); // Editar funcionarios
-router.delete("/funcionario", FuncionariosController.apagarFuncionario); // Apagar funcionarios
+router.patch("/funcionario/:func_id", FuncionariosController.editarFuncionario); // Editar funcionarios
+router.delete("/funcionario/:func_id", FuncionariosController.apagarFuncionario); // Apagar funcionarios
 
 module.exports = router;

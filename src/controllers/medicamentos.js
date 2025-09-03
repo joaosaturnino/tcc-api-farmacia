@@ -1,29 +1,6 @@
 const db = require("../dataBase/connection");
 const { json, response } = require("express");
 
-var fs = require("fs-extra");
-
-function geraUrl(e) {
-  // garantir que os valores em branco carreguem algo
-  let img = e.med_img ? e.med_img : "sem.jpg";
-  //verifica se imagem existe
-  if (!fs.existsSync("./upload/medicamentos/" + img)) {
-    img = "sem.jpg";
-  }
-
-  const medicamento = {
-    med_id: e.med_id,
-    med_nome: e.med_nome,
-    med_dosagem: e.med_dosagem,
-    med_quantidade: e.med_quantidade,
-    forma_id: e.forma_id,
-    descricao: e.descricao,
-    lab_id: e.lab_id,
-    med_img: "http://192.168.56.1:3333/upload/medicamentos/" + img, //+ img,
-    tipo_id: e.tipo_id,
-  };
-  return medicamento;
-}
 
 // Controller para gerenciar medicamentos
 // Este módulo contém funções para listar, cadastrar, editar e apagar medicamentos no banco de dados
@@ -68,21 +45,21 @@ module.exports = {
         med_dosagem,
         med_quantidade,
         forma_id,
+        descricao,
         lab_id,
-        med_img,
         tipo_id,
       } = request.body;
       // instrução sql para inserção
       const sql =
-        "INSERT INTO medicamento (med_nome, med_dosagem, med_quantidade, forma_id, lab_id, med_img, tipo_id) VALUES (?, ?, ?, ?, ?, ?, ?);";
+        "INSERT INTO medicamento (med_nome, med_dosagem, med_quantidade, forma_id, descricao, lab_id, tipo_id) VALUES (?, ?, ?, ?, ?, ?, ?);";
       // definição de array com paramentros que receberão os valores do front-end
       const values = [
         med_nome,
         med_dosagem,
         med_quantidade,
         forma_id,
+        descricao,
         lab_id,
-        med_img,
         tipo_id,
       ];
       // executa a instrução de inserção no banco de dados
@@ -113,6 +90,7 @@ module.exports = {
         med_dosagem,
         med_quantidade,
         forma_id,
+        descricao,
         lab_id,
         med_img,
         tipo_id,
@@ -121,13 +99,14 @@ module.exports = {
       const { med_id } = request.params;
       // instrução sql para edição
       const sql =
-        "UPDATE medicamento SET med_nome = ?, med_dosagem = ?, med_quantidade = ?, forma_id = ?, lab_id = ?, med_img = ?, tipo_id = ? WHERE med_id = ?;";
+        "UPDATE medicamento SET med_nome = ?, med_dosagem = ?, med_quantidade = ?, forma_id = ?, descricao = ?, lab_id = ?, med_img = ?, tipo_id = ? WHERE med_id = ?;";
       // definição de array com paramentros que receberão os valores do front-end
       const values = [
         med_nome,
         med_dosagem,
         med_quantidade,
         forma_id,
+        descricao,
         lab_id,
         med_img,
         tipo_id,
