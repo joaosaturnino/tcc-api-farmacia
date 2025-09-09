@@ -362,4 +362,132 @@ module.exports = {
     }
   },
 
+  // ... outras funções existentes ...
+
+async listarUnicaFormaFarmaceutica(request, response) {
+  try {
+    const { forma_id } = request.params;
+    const sql = 'SELECT forma_id, forma_nome FROM forma_farmaceutica WHERE forma_id = ?;';
+    const values = [forma_id];
+    const [rows] = await db.query(sql, values);
+    return response.status(200).json({
+      sucesso: true,
+      mensagem: 'Forma farmacêutica encontrada.',
+      itens: rows.length,
+      dados: rows
+    });
+  } catch (error) {
+    return response.status(500).json({
+      sucesso: false,
+      mensagem: 'Erro na requisição.',
+      dados: error.message
+    });
+  }
+},
+
+async listarUnicoLaboratorio(request, response) {
+  try {
+    const { lab_id } = request.params;
+    const sql = 'SELECT lab_id, nome_laboratorio, lab_cnpj FROM laboratorio WHERE lab_id = ?;';
+    const values = [lab_id];
+    const [rows] = await db.query(sql, values);
+    return response.status(200).json({
+      sucesso: true,
+      mensagem: 'Laboratório encontrado.',
+      itens: rows.length,
+      dados: rows
+    });
+  } catch (error) {
+    return response.status(500).json({
+      sucesso: false,
+      mensagem: 'Erro na requisição.',
+      dados: error.message
+    });
+  }
+},
+
+async listarUnicoFuncionario(request, response) {
+  try {
+    const { func_id } = request.params;
+    const sql = 'SELECT func_id, cargo, farm_id FROM funcionarios WHERE func_id = ?;';
+    const values = [func_id];
+    const [rows] = await db.query(sql, values);
+    return response.status(200).json({
+      sucesso: true,
+      mensagem: 'Funcionário encontrado.',
+      itens: rows.length,
+      dados: rows
+    });
+  } catch (error) {
+    return response.status(500).json({
+      sucesso: false,
+      mensagem: 'Erro na requisição.',
+      dados: error.message
+    });
+  }
+},
+
+async listarUnicoUsuario(request, response) {
+  try {
+    const { usu_id } = request.params;
+    const sql = 'SELECT usu_id, usu_nome, usu_email, usu_cpf FROM usuarios WHERE usu_id = ?;';
+    const values = [usu_id];
+    const [rows] = await db.query(sql, values);
+    return response.status(200).json({
+      sucesso: true,
+      mensagem: 'Usuário encontrado.',
+      itens: rows.length,
+      dados: rows
+    });
+  } catch (error) {
+    return response.status(500).json({
+      sucesso: false,
+      mensagem: 'Erro na requisição.',
+      dados: error.message
+    });
+  }
+},
+
+async listarUnicaAvaliacao(request, response) {
+  try {
+    const { ava_id } = request.params;
+    const sql = 'SELECT ava_id, usu_id, far_id, nota, ava_comentario FROM avaliacao WHERE ava_id = ?;';
+    const values = [ava_id];
+    const [rows] = await db.query(sql, values);
+    return response.status(200).json({
+      sucesso: true,
+      mensagem: 'Avaliação encontrada.',
+      itens: rows.length,
+      dados: rows
+    });
+  } catch (error) {
+    return response.status(500).json({
+      sucesso: false,
+      mensagem: 'Erro na requisição.',
+      dados: error.message
+    });
+  }
+},
+
+async listarUnicoFavorito(request, response) {
+  try {
+    const { fav_id } = request.params;
+    const sql = 'SELECT fav_id, usu_id, far_id, med_id FROM favoritos WHERE fav_id = ?;';
+    const values = [fav_id];
+    const [rows] = await db.query(sql, values);
+    return response.status(200).json({
+      sucesso: true,
+      mensagem: 'Favorito encontrado.',
+      itens: rows.length,
+      dados: rows
+    });
+  } catch (error) {
+    return response.status(500).json({
+      sucesso: false,
+      mensagem: 'Erro na requisição.',
+      dados: error.message
+    });
+  }
+}
+
 };
