@@ -1,4 +1,5 @@
 const db = require('../dataBase/connection');
+const { geraUrl } = require('../utils/gerarUrl');
 
 module.exports = {
   async listarFarmacias(request, response) {

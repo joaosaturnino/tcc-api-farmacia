@@ -11,6 +11,7 @@ app.use(router);
 
 // tornando as pastas public acessivel para imagens
 app.use("/public", express.static("public"));
+
 const porta = process.env.PORT || 3333;
 // const port = 3333; // Porta padrão para o servidor
 
