@@ -15,6 +15,11 @@ const FormaFarmaceuticaController = require("../controllers/farmaceuticas");
 const LaboratorioController = require("../controllers/laboratorio");
 const FuncionariosController = require("../controllers/funcionarios");
 
+const uploadImage = require('../middleware/uploadHelper');
+
+// middleware configurado
+const upload = uploadImage('teste');
+
 const ListarUnicoController = require("../controllers/listagem");
 const ListarParametroController = require("../controllers/parametros");
 const ListarInnerController = require("../controllers/innerjoin");
@@ -31,7 +36,7 @@ router.get("/cidade/cidadelimit", ListarUnicoController.listarLimiteCidade);
 
 // Routes para farmácias
 router.get("/farmacias", FarmaciasController.listarFarmacias);
-router.post("/farmacias", FarmaciasController.cadastrarFarmacias);
+router.post('/farmacias', upload.any(), FarmaciasController.cadastrarFarmacias);
 router.patch("/farmacias/:farm_id", FarmaciasController.editarFarmacias);
 router.delete("/farmacias/:farm_id", FarmaciasController.apagarFarmacias);
 router.get("/farmacias/:farm_id", ListarUnicoController.listarUnicaFarmacia);

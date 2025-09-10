@@ -23,26 +23,34 @@ module.exports = {
   },
 
   async cadastrarFarmacias(request, response) {
-    try {
-      const { farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, farm_logo, cid_id } = request.body;
-      const sql = `INSERT INTO farmacia (farm_nome, farm_endereco, farm_telefone, 
-                  farm_email, farm_senha, cnpj, farm_logo, cid_id) 
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?);`;
-      const values = [farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, farm_logo, cid_id];
-      const [rows] = await db.query(sql, values);
-      return response.status(200).json({
-        sucesso: true,
-        mensagem: 'Farmácia cadastrada com sucesso.',
-        dados: { farm_id: rows.insertId }
-      });
-    } catch (error) {
-      return response.status(500).json({
-        sucesso: false,
-        mensagem: 'Erro na requisição.',
-        dados: error.message
-      });
+  try {
+    const { farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, cid_id } = request.body;
+    
+    // Agora pode receber múltiplos arquivos
+    let nomeArquivo = null;
+    if (request.files && request.files.length > 0) {
+      nomeArquivo = request.files[0].filename; // Pega o primeiro arquivo
     }
-  },
+
+    const sql = `INSERT INTO farmacia (farm_nome, farm_endereco, farm_telefone, 
+                farm_email, farm_senha, cnpj, farm_logo, cid_id) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?);`;
+    const values = [farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, nomeArquivo, cid_id];
+    
+    const [rows] = await db.query(sql, values);
+    return response.status(200).json({
+      sucesso: true,
+      mensagem: 'Farmácia cadastrada com sucesso.',
+      dados: { farm_id: rows.insertId }
+    });
+  } catch (error) {
+    return response.status(500).json({
+      sucesso: false,
+      mensagem: 'Erro na requisição.',
+      dados: error.message
+    });
+  }
+},
 
   async editarFarmacias(request, response) {
     try {
