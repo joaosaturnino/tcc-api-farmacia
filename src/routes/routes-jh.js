@@ -36,7 +36,7 @@ router.get("/cidade/cidadelimit", ListarUnicoController.listarLimiteCidade);
 
 // Routes para farmácias
 router.get("/farmacias", FarmaciasController.listarFarmacias);
-router.post('/farmacias', upload.any(), FarmaciasController.cadastrarFarmacias);
+router.post("/farmacias", upload.any(), FarmaciasController.cadastrarFarmacias);
 router.patch("/farmacias/:farm_id", FarmaciasController.editarFarmacias);
 router.delete("/farmacias/:farm_id", FarmaciasController.apagarFarmacias);
 router.get("/farmacias/:farm_id", ListarUnicoController.listarUnicaFarmacia);

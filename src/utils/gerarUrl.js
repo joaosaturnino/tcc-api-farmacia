@@ -44,4 +44,5 @@ function gerarUrl(nomeArquivo, pasta, arquivoPadrao) {
 }
 
 // Exporte a nova função
-module.exports = { gerarUrl };
+// Mude o nome da função exportada para corresponder ao import
+module.exports = { geraUrl: gerarUrl }; // Ou mude o import para { gerarUrl }

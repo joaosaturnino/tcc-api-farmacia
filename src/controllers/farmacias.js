@@ -1,5 +1,5 @@
 const db = require('../dataBase/connection');
-const { geraUrl } = require('../utils/gerarUrl');
+const { geraUrl } = require('../utils/gerarUrl'); // Note o nome da função
 
 module.exports = {
   async listarFarmacias(request, response) {
@@ -7,11 +7,18 @@ module.exports = {
       const sql = `SELECT farm_id, farm_nome, farm_endereco, farm_telefone, 
                   farm_email, cnpj, farm_logo, cid_id FROM farmacia;`;
       const [rows] = await db.query(sql);
+      
+      // Adicione URLs completas para as logos
+      const farmaciasComUrl = rows.map(farmacia => ({
+        ...farmacia,
+        farm_logo_url: geraUrl(farmacia.farm_logo, 'teste', 'default-logo.png')
+      }));
+      
       return response.status(200).json({
         sucesso: true,
         mensagem: 'Lista de farmácias',
         itens: rows.length,
-        dados: rows
+        dados: farmaciasComUrl
       });
     } catch (error) {
       return response.status(500).json({
@@ -24,12 +31,42 @@ module.exports = {
 
   async cadastrarFarmacias(request, response) {
   try {
-    const { farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, cid_id } = request.body;
+    // Debug completo
+    console.log('Content-Type:', request.get('Content-Type'));
+    console.log('Body keys:', Object.keys(request.body));
+    console.log('Body values:', request.body);
     
-    // Agora pode receber múltiplos arquivos
+    // Extrai dados de forma mais segura
+    const farm_nome = request.body.farm_nome;
+    const farm_endereco = request.body.farm_endereco;
+    const farm_telefone = request.body.farm_telefone;
+    const farm_email = request.body.farm_email;
+    const farm_senha = request.body.farm_senha;
+    const cnpj = request.body.cnpj;
+    const cid_id = request.body.cid_id;
+
+    console.log('Dados extraídos:');
+    console.log('farm_nome:', farm_nome);
+    console.log('farm_endereco:', farm_endereco);
+    console.log('farm_telefone:', farm_telefone);
+    console.log('farm_email:', farm_email);
+    console.log('farm_senha:', farm_senha);
+    console.log('cnpj:', cnpj);
+    console.log('cid_id:', cid_id);
+
+    // Validação
+    if (!farm_nome || farm_nome.trim() === '') {
+      return response.status(400).json({
+        sucesso: false,
+        mensagem: 'O nome da farmácia é obrigatório.',
+        dados: null
+      });
+    }
+
     let nomeArquivo = null;
     if (request.files && request.files.length > 0) {
-      nomeArquivo = request.files[0].filename; // Pega o primeiro arquivo
+      nomeArquivo = request.files[0].filename;
+      console.log('Arquivo recebido:', nomeArquivo);
     }
 
     const sql = `INSERT INTO farmacia (farm_nome, farm_endereco, farm_telefone, 
@@ -38,15 +75,23 @@ module.exports = {
     const values = [farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, nomeArquivo, cid_id];
     
     const [rows] = await db.query(sql, values);
-    return response.status(200).json({
+    
+    const farmaciaUrl = geraUrl(nomeArquivo, 'teste', 'default-logo.png');
+    
+    return response.status(201).json({
       sucesso: true,
       mensagem: 'Farmácia cadastrada com sucesso.',
-      dados: { farm_id: rows.insertId }
+      dados: { 
+        farm_id: rows.insertId,
+        farm_logo: nomeArquivo,
+        farm_logo_url: farmaciaUrl
+      }
     });
   } catch (error) {
+    console.error('Erro no cadastro:', error);
     return response.status(500).json({
       sucesso: false,
-      mensagem: 'Erro na requisição.',
+      mensagem: 'Erro interno no servidor.',
       dados: error.message
     });
   }
@@ -54,13 +99,29 @@ module.exports = {
 
   async editarFarmacias(request, response) {
     try {
-      const { farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, farm_logo, cid_id } = request.body;
+      const { farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, cid_id } = request.body;
       const { farm_id } = request.params;
-      const sql = `UPDATE farmacia SET farm_nome = ?, farm_endereco = ?, farm_telefone = ?, 
-                  farm_email = ?, farm_senha = ?, cnpj = ?, farm_logo = ?, cid_id = ? 
-                  WHERE farm_id = ?;`;
-      const values = [farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, farm_logo, cid_id, farm_id];
+      
+      let nomeArquivo = null;
+      if (request.files && request.files.length > 0) {
+        nomeArquivo = request.files[0].filename;
+      }
+
+      // Se não houver novo arquivo, mantém o existente
+      const sql = nomeArquivo 
+        ? `UPDATE farmacia SET farm_nome = ?, farm_endereco = ?, farm_telefone = ?, 
+           farm_email = ?, farm_senha = ?, cnpj = ?, farm_logo = ?, cid_id = ? 
+           WHERE farm_id = ?;`
+        : `UPDATE farmacia SET farm_nome = ?, farm_endereco = ?, farm_telefone = ?, 
+           farm_email = ?, farm_senha = ?, cnpj = ?, cid_id = ? 
+           WHERE farm_id = ?;`;
+      
+      const values = nomeArquivo 
+        ? [farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, nomeArquivo, cid_id, farm_id]
+        : [farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, cid_id, farm_id];
+      
       const [rows] = await db.query(sql, values);
+      
       return response.status(200).json({
         sucesso: true,
         mensagem: 'Farmácia editada com sucesso.',
