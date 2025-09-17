@@ -3,7 +3,7 @@ const db = require('../dataBase/connection');
 module.exports = {
   async listarFavoritos(request, response) {
     try {
-      const sql = 'SELECT fav_id, usu_id, far_id, med_id FROM favoritos;';
+      const sql = 'SELECT fav_id, usuario_id, farmacia_id, medicamento_id FROM favoritos;';
       const [rows] = await db.query(sql);
       return response.status(200).json({
         sucesso: true,
@@ -22,9 +22,9 @@ module.exports = {
 
   async cadastrarFavoritos(request, response) {
     try {
-      const { usu_id, far_id, med_id } = request.body;
-      const sql = 'INSERT INTO favoritos (usu_id, far_id, med_id) VALUES (?, ?, ?);';
-      const values = [usu_id, far_id, med_id];
+      const { usuario_id, farmacia_id, medicamento_id } = request.body;
+      const sql = 'INSERT INTO favoritos (usuario_id, farmacia_id, medicamento_id) VALUES (?, ?, ?);';
+      const values = [usuario_id, farmacia_id, medicamento_id];
       const [rows] = await db.query(sql, values);
       return response.status(200).json({
         sucesso: true,

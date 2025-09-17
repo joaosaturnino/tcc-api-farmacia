@@ -4,8 +4,8 @@ const { geraUrl } = require('../utils/gerarUrl'); // Note o nome da função
 module.exports = {
   async listarFarmacias(request, response) {
     try {
-      const sql = `SELECT farm_id, farm_nome, farm_endereco, farm_telefone, 
-                  farm_email, cnpj, farm_logo, cid_id FROM farmacia;`;
+      const sql = `SELECT farm_id, farm_nome, farm_cnpj, farm_endereco, farm_telefone, 
+                  farm_email,  farm_logo, farm_cidade_id FROM farmacia;`;
       const [rows] = await db.query(sql);
       
       // Adicione URLs completas para as logos
@@ -38,12 +38,15 @@ module.exports = {
     
     // Extrai dados de forma mais segura
     const farm_nome = request.body.farm_nome;
+    const farm_cnpj = request.body.farm_cnpj;
     const farm_endereco = request.body.farm_endereco;
     const farm_telefone = request.body.farm_telefone;
     const farm_email = request.body.farm_email;
     const farm_senha = request.body.farm_senha;
-    const cnpj = request.body.cnpj;
-    const cid_id = request.body.cid_id;
+    const farm_logo = request.body.farm_logo; // Pode ser null
+    const farm_cidade_id = request.body.farm_cidade_id;
+    
+    
 
     console.log('Dados extraídos:');
     console.log('farm_nome:', farm_nome);
@@ -51,8 +54,8 @@ module.exports = {
     console.log('farm_telefone:', farm_telefone);
     console.log('farm_email:', farm_email);
     console.log('farm_senha:', farm_senha);
-    console.log('cnpj:', cnpj);
-    console.log('cid_id:', cid_id);
+    console.log('farm_cnpj:', farm_cnpj);
+    console.log('farm_cidade_id:', farm_cidade_id);
 
     // Validação
     if (!farm_nome || farm_nome.trim() === '') {
@@ -69,10 +72,10 @@ module.exports = {
       console.log('Arquivo recebido:', nomeArquivo);
     }
 
-    const sql = `INSERT INTO farmacia (farm_nome, farm_endereco, farm_telefone, 
-                farm_email, farm_senha, cnpj, farm_logo, cid_id) 
+    const sql = `INSERT INTO farmacia (farm_nome, farm_cnpj, farm_endereco, farm_telefone, 
+                farm_email, farm_senha, farm_logo, farm_cidade_id) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?);`;
-    const values = [farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, nomeArquivo, cid_id];
+    const values = [farm_nome, farm_cnpj, farm_endereco, farm_telefone, farm_email, farm_senha, nomeArquivo, farm_cidade_id];
     
     const [rows] = await db.query(sql, values);
     
@@ -99,7 +102,7 @@ module.exports = {
 
   async editarFarmacias(request, response) {
     try {
-      const { farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, cid_id } = request.body;
+      const { farm_nome, farm_cnpj, farm_endereco, farm_telefone, farm_email, farm_senha, farm_cidade_id } = request.body;
       const { farm_id } = request.params;
       
       let nomeArquivo = null;
@@ -109,16 +112,16 @@ module.exports = {
 
       // Se não houver novo arquivo, mantém o existente
       const sql = nomeArquivo 
-        ? `UPDATE farmacia SET farm_nome = ?, farm_endereco = ?, farm_telefone = ?, 
-           farm_email = ?, farm_senha = ?, cnpj = ?, farm_logo = ?, cid_id = ? 
+        ? `UPDATE farmacia SET farm_nome = ?, farm_cnpj = ?, farm_endereco = ?, farm_telefone = ?, 
+           farm_email = ?, farm_senha = ?, farm_cnpj = ?, farm_logo = ?, farm_cidade_id = ? 
            WHERE farm_id = ?;`
-        : `UPDATE farmacia SET farm_nome = ?, farm_endereco = ?, farm_telefone = ?, 
-           farm_email = ?, farm_senha = ?, cnpj = ?, cid_id = ? 
+        : `UPDATE farmacia SET farm_nome = ?, farm_cnpj = ?, farm_endereco = ?, farm_telefone = ?, 
+           farm_email = ?, farm_senha = ?, farm_cidade_id = ? 
            WHERE farm_id = ?;`;
       
       const values = nomeArquivo 
-        ? [farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, nomeArquivo, cid_id, farm_id]
-        : [farm_nome, farm_endereco, farm_telefone, farm_email, farm_senha, cnpj, cid_id, farm_id];
+        ? [farm_nome, farm_cnpj, farm_endereco, farm_telefone, farm_email, farm_senha, nomeArquivo, farm_cidade_id, farm_id]
+        : [farm_nome, farm_cnpj, farm_endereco, farm_telefone, farm_email, farm_senha, farm_cidade_id, farm_id];
       
       const [rows] = await db.query(sql, values);
       

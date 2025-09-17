@@ -3,7 +3,7 @@ const db = require('../dataBase/connection');
 module.exports = {
   async listarAvaliacao(request, response) {
     try {
-      const sql = 'SELECT ava_id, usu_id, far_id, nota, ava_comentario FROM avaliacao;';
+      const sql = 'SELECT ava_id, usuario_id, farmacia_id, ava_nota, ava_comentario FROM avaliacao;';
       const [rows] = await db.query(sql);
       return response.status(200).json({
         sucesso: true,
@@ -22,9 +22,9 @@ module.exports = {
 
   async cadastrarAvaliacao(request, response) {
     try {
-      const { usu_id, far_id, nota, ava_comentario } = request.body;
-      const sql = 'INSERT INTO avaliacao (usu_id, far_id, nota, ava_comentario) VALUES (?, ?, ?, ?);';
-      const values = [usu_id, far_id, nota, ava_comentario];
+      const { usuario_id, farmacia_id, ava_nota, ava_comentario } = request.body;
+      const sql = 'INSERT INTO avaliacao (usuario_id, farmacia_id, ava_nota, ava_comentario) VALUES (?, ?, ?, ?);';
+      const values = [usuario_id, farmacia_id, ava_nota, ava_comentario];
       const [rows] = await db.query(sql, values);
       return response.status(200).json({
         sucesso: true,
@@ -42,10 +42,10 @@ module.exports = {
 
   async editarAvaliacao(request, response) {
     try {
-      const { nota, ava_comentario } = request.body;
+      const { ava_nota, ava_comentario } = request.body;
       const { ava_id } = request.params;
-      const sql = 'UPDATE avaliacao SET nota = ?, ava_comentario = ? WHERE ava_id = ?;';
-      const values = [nota, ava_comentario, ava_id];
+      const sql = 'UPDATE avaliacao SET ava_nota = ?, ava_comentario = ? WHERE ava_id = ?;';
+      const values = [ava_nota, ava_comentario, ava_id];
       const [rows] = await db.query(sql, values);
       return response.status(200).json({
         sucesso: true,
