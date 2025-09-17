@@ -3,7 +3,7 @@ const db = require('../dataBase/connection');
 module.exports = {
   async listarPromocoes(request, response) {
     try {
-      const sql = `SELECT promo_id, farm_id, med_id, promo_desconto, 
+      const sql = `SELECT promo_id, farmacia_id, medicamento_id, promo_desconto, 
                   promo_inicio, promo_fim FROM promocao;`;
       const [rows] = await db.query(sql);
       return response.status(200).json({

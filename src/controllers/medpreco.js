@@ -3,7 +3,7 @@ const db = require('../dataBase/connection');
 module.exports = {
   async listarMedPreco(request, response) {
     try {
-      const sql = 'SELECT medpreco_id, farmacia_id, med_id, preco FROM medpreco;';
+      const sql = 'SELECT medp_id, medicamento_id, farmacia_id, medp_preco FROM medpreco;';
       const [rows] = await db.query(sql);
       return response.status(200).json({
         sucesso: true,
@@ -22,9 +22,9 @@ module.exports = {
 
   async cadastrarMedPreco(request, response) {
     try {
-      const { farmacia_id, med_id, preco } = request.body;
-      const sql = 'INSERT INTO medpreco (farmacia_id, med_id, preco) VALUES (?, ?, ?);';
-      const values = [farmacia_id, med_id, preco];
+      const { medicamento_id, farmacia_id, medp_preco } = request.body;
+      const sql = 'INSERT INTO medpreco (farmacia_id, medicamento_id, medp_preco) VALUES (?, ?, ?);';
+      const values = [farmacia_id, medicamento_id, medp_preco];
       const [rows] = await db.query(sql, values);
       return response.status(200).json({
         sucesso: true,
@@ -42,10 +42,10 @@ module.exports = {
 
   async editarMedPreco(request, response) {
     try {
-      const { farmacia_id, med_id, preco } = request.body;
-      const { medpreco_id } = request.params;
-      const sql = 'UPDATE medpreco SET farmacia_id = ?, med_id = ?, preco = ? WHERE medpreco_id = ?;';
-      const values = [farmacia_id, med_id, preco, medpreco_id];
+      const { medicamento_id, farmacia_id, medp_preco } = request.body;
+      const { medp_id } = request.params;
+      const sql = 'UPDATE medpreco SET farmacia_id = ?, medicamento_id = ?, medp_preco = ? WHERE medp_id = ?;';
+      const values = [farmacia_id, medicamento_id, medp_preco, medp_id];
       const [rows] = await db.query(sql, values);
       return response.status(200).json({
         sucesso: true,
