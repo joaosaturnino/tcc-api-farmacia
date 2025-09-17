@@ -3,7 +3,7 @@ const db = require('../dataBase/connection');
 module.exports = {
   async listarLaboratorio(request, response) {
     try {
-      const sql = 'SELECT lab_id, nome_laboratorio, lab_cnpj FROM laboratorio;';
+      const sql = 'SELECT lab_id, lab_nome, lab_cnpj, lab_endereco, lab_telefone, lab_email, lab_logo, lab_dtcad, lab_dtatua, lab_ativo FROM laboratorios;';
       const [rows] = await db.query(sql);
       return response.status(200).json({
         sucesso: true,
@@ -22,9 +22,9 @@ module.exports = {
 
   async cadastrarLaboratorio(request, response) {
     try {
-      const { nome_laboratorio, lab_cnpj } = request.body;
-      const sql = 'INSERT INTO laboratorio (nome_laboratorio, lab_cnpj) VALUES (?, ?);';
-      const values = [nome_laboratorio, lab_cnpj];
+      const { lab_nome, lab_cnpj, lab_endereco, lab_telefone, lab_email, lab_logo, lab_dtcad, lab_dtatua, lab_ativo } = request.body;
+      const sql = 'INSERT INTO laboratorios (lab_nome, lab_cnpj, lab_endereco, lab_telefone, lab_email, lab_logo, lab_dtcad, lab_dtatua, lab_ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);';
+      const values = [lab_nome, lab_cnpj, lab_endereco, lab_telefone, lab_email, lab_logo, lab_dtcad, lab_dtatua, lab_ativo];
       const [rows] = await db.query(sql, values);
       return response.status(200).json({
         sucesso: true,
@@ -64,7 +64,7 @@ module.exports = {
   async apagarLaboratorio(request, response) {
     try {
       const { lab_id } = request.params;
-      const sql = 'DELETE FROM laboratorio WHERE lab_id = ?;';
+      const sql = 'DELETE FROM laboratorios WHERE lab_id = ?;';
       const values = [lab_id];
       const [rows] = await db.query(sql, values);
       return response.status(200).json({
