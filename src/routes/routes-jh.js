@@ -24,6 +24,7 @@ const ListarUnicoController = require("../controllers/listagem");
 const ListarParametroController = require("../controllers/parametros");
 const ListarInnerController = require("../controllers/innerjoin");
 
+
 // Routes para cidades
 router.get("/cidades", CidadesController.listarCidade);
 router.get("/ufs", CidadesController.listarUfs);
@@ -111,6 +112,7 @@ router.get("/avaliacao/:ava_id", ListarUnicoController.listarUnicaAvaliacao);
 router.get("/favoritos", FavoritosController.listarFavoritos);
 router.post("/favoritos", FavoritosController.cadastrarFavoritos);
 router.delete("/favoritos/:fav_id", FavoritosController.apagarFavoritos);
-router.get("/favoritos/:fav_id", ListarUnicoController.listarUnicoFavorito);
+// router.get("/favoritos/:fav_id", ListarUnicoController.listarUnicoFavorito);
+router.get("/favoritos/:fav_id", FavoritosController.listarFavoritosComLaboratorio);
 
 module.exports = router;

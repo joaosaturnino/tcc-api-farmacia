@@ -58,5 +58,36 @@ module.exports = {
         dados: error.message
       });
     }
+  },
+
+  async listarFavoritosComLaboratorio(request, response) {
+  try {
+    try {
+      const { fav_id } = request.params;
+      const sql = 'SELECT f.fav_id, f.usuario_id, f.farmacia_id, f.medicamento_id, l.lab_id, l.lab_nome FROM favoritos f INNER JOIN medicamento m ON f.medicamento_id = m.med_id INNER JOIN laboratorios l ON m.lab_id = l.lab_id;';
+      const [rows] = await db.query(sql);
+      return response.status(200).json({
+        sucesso: true,
+        mensagem: 'Lista de favoritos',
+        itens: rows.length,
+        dados: rows
+      });
+    } catch (error) {
+      return response.status(500).json({
+        sucesso: false,
+        mensagem: 'Erro na requisição.',
+        dados: error.message
+      });
+    }
+    const query = `
+      
+    `;
+
+    const [rows] = await pool.query(query);
+    res.status(200).json(rows);
+  } catch (error) {
+    console.error('Erro ao listar favoritos:', error);
+    res.status(500).json({ error: 'Erro ao listar favoritos com laboratório' });
   }
+},
 };
