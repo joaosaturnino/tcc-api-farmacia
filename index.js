@@ -1,7 +1,9 @@
 require("dotenv").config();
 const express = require("express");
-const cors = require("cors");
+const cors = require('cors'); 
 
+// O ideal é que o seu arquivo de rotas principal controle todas as rotas.
+// A rota get("/") foi removida daqui e deve ser colocada no seu arquivo de rotas se necessária.
 const router = require("./src/routes/routes");
 
 const app = express();
@@ -9,16 +11,22 @@ app.use(cors());
 app.use(express.json());
 app.use(router);
 
-// tornando as pastas public acessivel para imagens
+// tornando a pasta public acessível para imagens
 app.use("/public", express.static("public"));
 
 const porta = process.env.PORT || 3333;
-// const port = 3333; // Porta padrão para o servidor
 
 app.listen(porta, () => {
-  console.log(`Servidor iniciado na porta ${"192.168.56.1"}`);
+  // CORREÇÃO: A mensagem agora exibe a variável "porta" corretamente.
+  // Isso mostrará "Servidor iniciado na porta 3333" no console.
+  console.log(`Servidor iniciado na porta ${porta}`);
 });
 
+// A ROTA ABAIXO FOI REMOVIDA
+// Motivo 1: Estava depois do app.listen(), o que não é ideal.
+// Motivo 2: Todas as rotas devem ser centralizadas no seu arquivo "router".
+/*
 app.get("/", (request, response) => {
   response.send("Hello World");
 });
+*/

@@ -47,9 +47,11 @@ router.get("/medicamentos", MedicamentosController.listarMedicamentos);
 router.post("/medicamentos", MedicamentosController.cadastrarMedicamentos);
 router.patch("/medicamentos/:med_id", MedicamentosController.editarMedicamentos);
 router.delete("/medicamentos/:med_id", MedicamentosController.apagarMedicamentos);
-router.get("/medicamentos/:med_id", ListarUnicoController.listarUnicoMedicamento);
+// router.get("/medicamentos/:med_id", ListarUnicoController.listarUnicoMedicamento);
 router.get("/medicamento", ListarParametroController.listarMedicamentosParametros);
 router.get("/medicamento/inner", ListarInnerController.listarMedicamentoInner);
+router.get('/medicamentos/:med_id', MedicamentosController.listarMedicamentoPorId);
+router.put('/medicamentos/:med_id', MedicamentosController.editarMedicamentos);
 
 // Routes para precos medicamentos
 router.get("/medpreco", MedPrecoController.listarMedPreco);

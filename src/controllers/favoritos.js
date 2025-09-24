@@ -3,7 +3,22 @@ const db = require('../dataBase/connection');
 module.exports = {
   async listarFavoritos(request, response) {
     try {
-      const sql = 'SELECT fav_id, usuario_id, farmacia_id, medicamento_id FROM favoritos;';
+      const sql = `
+        SELECT 
+          med.med_id,
+          med.med_nome,
+          med.med_dosagem,
+          
+          med.med_data_atualizacao,
+          lab.lab_nome AS fabricante_nome,
+          (SELECT COUNT(*) FROM favoritos WHERE medicamento_id = med.med_id) AS favoritacoes_count
+        FROM favoritos fav
+        INNER JOIN medicamento med ON fav.medicamento_id = med.med_id
+        INNER JOIN laboratorios lab ON med.lab_id = lab.lab_id
+        GROUP BY med.med_id
+        ORDER BY favoritacoes_count DESC;
+      `;
+      
       const [rows] = await db.query(sql);
       return response.status(200).json({
         sucesso: true,
