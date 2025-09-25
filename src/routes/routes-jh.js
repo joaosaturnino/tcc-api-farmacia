@@ -23,7 +23,7 @@ const upload = uploadImage('teste');
 const ListarUnicoController = require("../controllers/listagem");
 const ListarParametroController = require("../controllers/parametros");
 const ListarInnerController = require("../controllers/innerjoin");
-
+const LoginFarmController = require("../controllers/loginFarm");
 
 // Routes para cidades
 router.get("/cidades", CidadesController.listarCidade);
@@ -116,5 +116,7 @@ router.post("/favoritos", FavoritosController.cadastrarFavoritos);
 router.delete("/favoritos/:fav_id", FavoritosController.apagarFavoritos);
 // router.get("/favoritos/:fav_id", ListarUnicoController.listarUnicoFavorito);
 router.get("/favoritos/:fav_id", FavoritosController.listarFavoritosComLaboratorio);
+
+router.post("/loginfarm", LoginFarmController.login);
 
 module.exports = router;

@@ -14,11 +14,11 @@ app.use(router);
 // tornando a pasta public acessível para imagens
 app.use("/public", express.static("public"));
 
-const porta = process.env.PORT || 3333;
+const porta = process.env.PORT || 3334;
 
 app.listen(porta, () => {
   // CORREÇÃO: A mensagem agora exibe a variável "porta" corretamente.
-  // Isso mostrará "Servidor iniciado na porta 3333" no console.
+  // Isso mostrará "Servidor iniciado na porta 3334" no console.
   console.log(`Servidor iniciado na porta ${porta}`);
 });
 
