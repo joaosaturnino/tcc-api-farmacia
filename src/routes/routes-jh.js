@@ -52,6 +52,7 @@ router.get("/medicamento", ListarParametroController.listarMedicamentosParametro
 router.get("/medicamento/inner", ListarInnerController.listarMedicamentoInner);
 router.get('/medicamentos/:med_id', MedicamentosController.listarMedicamentoPorId);
 router.put('/medicamentos/:med_id', MedicamentosController.editarMedicamentos);
+router.post('/medicamentos/:farm_id', MedicamentosController.cadastrarMedicamentos);
 
 // Routes para precos medicamentos
 router.get("/medpreco", MedPrecoController.listarMedPreco);
