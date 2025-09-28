@@ -19,7 +19,7 @@ module.exports = {
     try {
       // ANOTAÇÃO: A query foi atualizada para incluir o código de barras, um campo importante
       // que estava faltando na listagem.
-      const sql = `SELECT med_id, med_nome, med_dosagem, med_quantidade, med_codigo_barras,
+      const sql = `SELECT med_id, med_nome, med_dosagem, med_quantidade, med_cod_barras,
                   forma_id, med_descricao, lab_id, med_imagem, tipo_id, 
                   med_data_cadastro, med_data_atualizacao, med_ativo 
                   FROM medicamento;`;
