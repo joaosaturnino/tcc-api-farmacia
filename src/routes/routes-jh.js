@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const multer = require('multer');
 
 // Importando todos os controllers
 const CidadesController = require("../controllers/cidades");
@@ -15,15 +16,30 @@ const FormaFarmaceuticaController = require("../controllers/farmaceuticas");
 const LaboratorioController = require("../controllers/laboratorio");
 const FuncionariosController = require("../controllers/funcionarios");
 
+// 1. Configuração do Multer
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        // O diretório onde as imagens serão salvas (crie esta pasta no seu projeto back-end)
+        cb(null, 'uploads/logos/');
+    },
+    filename: (req, file, cb) => {
+        // Define um nome de arquivo único para evitar conflitos
+        cb(null, `${Date.now()}-${file.originalname}`);
+    }
+});
+
+const upload = multer({ storage: storage });
+
 const uploadImage = require('../middleware/uploadHelper');
 
 // middleware configurado
-const upload = uploadImage('teste');
+//const upload = uploadImage('teste');
 
 const ListarUnicoController = require("../controllers/listagem");
 const ListarParametroController = require("../controllers/parametros");
 const ListarInnerController = require("../controllers/innerjoin");
 const LoginFarmController = require("../controllers/loginFarm");
+const ListarFuncionarioPorId = require("../controllers/funcionarios");
 
 // Routes para cidades
 router.get("/cidades", CidadesController.listarCidade);
@@ -36,11 +52,12 @@ router.get("/cidade", ListarParametroController.listarCidadeParametro);
 router.get("/cidade/cidadelimit", ListarUnicoController.listarLimiteCidade);
 
 // Routes para farmácias
-router.get("/farmacias", FarmaciasController.listarFarmacias);
+//router.get("/farmacias", FarmaciasController.listarFarmacias);
 router.post("/farmacias", upload.any(), FarmaciasController.cadastrarFarmacias);
-router.patch("/farmacias/:farm_id", FarmaciasController.editarFarmacias);
+router.put("/farmacias/:farm_id", FarmaciasController.editarFarmacias);
 router.delete("/farmacias/:farm_id", FarmaciasController.apagarFarmacias);
-router.get("/farmacias/:farm_id", ListarUnicoController.listarUnicaFarmacia);
+//router.get("/farmacias/:farm_id", ListarUnicoController.listarUnicaFarmacia);
+router.get('/farmacias/:farm_id', FarmaciasController.listarFarmaciaPorId);
 
 // Routes para medicamentos
 router.get("/medicamentos", MedicamentosController.listarMedicamentos);
@@ -83,11 +100,14 @@ router.patch("/farmaceutica/:forma_id", FormaFarmaceuticaController.editarFarmac
 router.delete("/farmaceutica/:forma_id", FormaFarmaceuticaController.apagarFarmaceutica);
 router.get("/farmaceutica/:forma_id", ListarUnicoController.listarUnicaFormaFarmaceutica);
 
+
 // Routes para laboratórios
-router.get("/laboratorio", LaboratorioController.listarLaboratorio);
-router.post("/laboratorio", LaboratorioController.cadastrarLaboratorio);
-router.patch("/laboratorio/:lab_id", LaboratorioController.editarLaboratorio);
-router.delete("/laboratorio/:lab_id", LaboratorioController.apagarLaboratorio);
+router.get("/laboratorios", LaboratorioController.listarLaboratorio);
+router.post('/laboratorios', upload.single('lab_logo'), LaboratorioController.cadastrarLaboratorio);
+//router.post("/laboratorios", LaboratorioController.cadastrarLaboratorio);
+router.put('/laboratorios/:lab_id', upload.single('lab_logo'), LaboratorioController.editarLaboratorio);
+//router.patch("/laboratorio/:lab_id", LaboratorioController.editarLaboratorio);
+router.delete("/laboratorios/:lab_id", LaboratorioController.apagarLaboratorio);
 router.get("/laboratorio/:lab_id", ListarUnicoController.listarUnicoLaboratorio);
 
 // Routes para funcionários
@@ -95,7 +115,7 @@ router.get("/funcionario", FuncionariosController.listarFuncionarios);
 router.post("/funcionario", FuncionariosController.cadastrarFuncionarios);
 router.patch("/funcionario/:func_id", FuncionariosController.editarFuncionarios);
 router.delete("/funcionario/:func_id", FuncionariosController.apagarFuncionarios);
-router.get("/funcionario/:func_id", ListarUnicoController.listarUnicoFuncionario);
+router.get("/funcionario/:func_id", FuncionariosController.listarFuncionarioPorId);
 
 // Routes para usuários
 router.get("/usuarios", UsuariosController.listarUsuario);
