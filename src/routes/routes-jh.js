@@ -59,17 +59,23 @@ router.delete("/farmacias/:farm_id", FarmaciasController.apagarFarmacias);
 //router.get("/farmacias/:farm_id", ListarUnicoController.listarUnicaFarmacia);
 router.get('/farmacias/:farm_id', FarmaciasController.listarFarmaciaPorId);
 
+
 // Routes para medicamentos
+// GET /medicamentos -> Lista todos os medicamentos de uma farmácia (via query string)
 router.get("/medicamentos", MedicamentosController.listarMedicamentos);
+
+// POST /medicamentos -> Cadastra um novo medicamento
 router.post("/medicamentos", MedicamentosController.cadastrarMedicamentos);
-router.patch("/medicamentos/:med_id", MedicamentosController.editarMedicamentos);
+
+// GET /medicamentos/:med_id -> Busca um medicamento específico de uma farmácia
+router.get("/medicamentos/:med_id", MedicamentosController.listarMedicamentoPorId);
+
+// PUT /medicamentos/:med_id -> Atualiza um medicamento específico
+router.put("/medicamentos/:med_id", MedicamentosController.editarMedicamentos);
+
+// DELETE /medicamentos/:med_id -> Apaga um medicamento específico
 router.delete("/medicamentos/:med_id", MedicamentosController.apagarMedicamentos);
-// router.get("/medicamentos/:med_id", ListarUnicoController.listarUnicoMedicamento);
-router.get("/medicamento", ListarParametroController.listarMedicamentosParametros);
-router.get("/medicamento/inner", ListarInnerController.listarMedicamentoInner);
-router.get('/medicamentos/:med_id', MedicamentosController.listarMedicamentoPorId);
-router.put('/medicamentos/:med_id', MedicamentosController.editarMedicamentos);
-router.post('/medicamentos/:farm_id', MedicamentosController.cadastrarMedicamentos);
+
 
 // Routes para precos medicamentos
 router.get("/medpreco", MedPrecoController.listarMedPreco);
@@ -137,6 +143,7 @@ router.post("/favoritos", FavoritosController.cadastrarFavoritos);
 router.delete("/favoritos/:fav_id", FavoritosController.apagarFavoritos);
 // router.get("/favoritos/:fav_id", ListarUnicoController.listarUnicoFavorito);
 router.get("/favoritos/:fav_id", FavoritosController.listarFavoritosComLaboratorio);
+router.get('/favoritos/:farm_id/favoritos', FavoritosController.listarFavoritosPorFarmacia);
 
 router.post("/loginfarm", LoginFarmController.login);
 

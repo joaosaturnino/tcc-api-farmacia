@@ -35,6 +35,52 @@ module.exports = {
     }
   },
 
+  async listarFavoritosPorFarmacia(request, response) {
+     console.log('--- EXECUTANDO listarFavoritosPorFarmacia ---');
+  console.log('ID da farmácia recebido na URL:', request.params.farm_id);
+    try {
+      const { farm_id } = request.params;
+
+      if (!farm_id) {
+        return response.status(400).json({
+          sucesso: false,
+          mensagem: 'O ID da farmácia é obrigatório.',
+        });
+      }
+      
+      const sql = `
+        SELECT 
+          med.med_id,
+          med.med_nome,
+          med.med_dosagem,
+          med.med_data_atualizacao,
+          lab.lab_nome AS fabricante_nome,
+          COUNT(fav.fav_id) AS favoritacoes_count
+        FROM favoritos fav
+        INNER JOIN medicamento med ON fav.medicamento_id = med.med_id
+        INNER JOIN laboratorios lab ON med.lab_id = lab.lab_id
+        WHERE fav.farmacia_id = ?
+        GROUP BY med.med_id, med.med_nome, med.med_dosagem, med.med_data_atualizacao, lab.lab_nome
+        ORDER BY favoritacoes_count DESC;
+      `;
+      
+      const [rows] = await db.query(sql, [farm_id]);
+      
+      return response.status(200).json({
+        sucesso: true,
+        mensagem: `Lista de medicamentos favoritados para a farmácia ${farm_id}`,
+        itens: rows.length,
+        dados: rows
+      });
+    } catch (error) {
+      return response.status(500).json({
+        sucesso: false,
+        mensagem: 'Erro na requisição ao buscar favoritos da farmácia.',
+        dados: error.message
+      });
+    }
+  },
+
   async cadastrarFavoritos(request, response) {
     try {
       const { usuario_id, farmacia_id, medicamento_id } = request.body;

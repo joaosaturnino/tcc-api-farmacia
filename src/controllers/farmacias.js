@@ -63,6 +63,8 @@ module.exports = {
     }
   },
 
+  
+
   async cadastrarFarmacias(request, response) {
   try {
     // Debug completo
