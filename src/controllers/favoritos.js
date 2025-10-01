@@ -8,36 +8,30 @@ module.exports = {
           med.med_id,
           med.med_nome,
           med.med_dosagem,
-          
-          med.med_data_atualizacao,
           lab.lab_nome AS fabricante_nome,
-          (SELECT COUNT(*) FROM favoritos WHERE medicamento_id = med.med_id) AS favoritacoes_count
+          COUNT(fav.fav_id) AS favoritacoes_count
         FROM favoritos fav
         INNER JOIN medicamento med ON fav.medicamento_id = med.med_id
         INNER JOIN laboratorios lab ON med.lab_id = lab.lab_id
-        GROUP BY med.med_id
+        GROUP BY med.med_id, med.med_nome, med.med_dosagem, lab.lab_nome
         ORDER BY favoritacoes_count DESC;
       `;
       
       const [rows] = await db.query(sql);
       return response.status(200).json({
         sucesso: true,
-        mensagem: 'Lista de favoritos',
+        mensagem: 'Lista geral de favoritos',
         itens: rows.length,
         dados: rows
       });
     } catch (error) {
-      return response.status(500).json({
-        sucesso: false,
-        mensagem: 'Erro na requisição.',
-        dados: error.message
-      });
+      return handleServerError(response, error);
     }
   },
 
+  // Esta é a função que sua página de favoritos deve usar.
+  // Ela busca os favoritos de UMA farmácia específica.
   async listarFavoritosPorFarmacia(request, response) {
-     console.log('--- EXECUTANDO listarFavoritosPorFarmacia ---');
-  console.log('ID da farmácia recebido na URL:', request.params.farm_id);
     try {
       const { farm_id } = request.params;
 
@@ -73,53 +67,63 @@ module.exports = {
         dados: rows
       });
     } catch (error) {
-      return response.status(500).json({
-        sucesso: false,
-        mensagem: 'Erro na requisição ao buscar favoritos da farmácia.',
-        dados: error.message
-      });
+      return handleServerError(response, error);
     }
   },
 
   async cadastrarFavoritos(request, response) {
     try {
       const { usuario_id, farmacia_id, medicamento_id } = request.body;
+       if (!usuario_id || !farmacia_id || !medicamento_id) {
+        return response.status(400).json({ sucesso: false, mensagem: 'Todos os IDs (usuário, farmácia, medicamento) são obrigatórios.' });
+      }
       const sql = 'INSERT INTO favoritos (usuario_id, farmacia_id, medicamento_id) VALUES (?, ?, ?);';
       const values = [usuario_id, farmacia_id, medicamento_id];
-      const [rows] = await db.query(sql, values);
-      return response.status(200).json({
+      const [result] = await db.query(sql, values);
+      return response.status(201).json({
         sucesso: true,
         mensagem: 'Favorito cadastrado com sucesso.',
-        dados: { fav_id: rows.insertId }
+        dados: { fav_id: result.insertId }
       });
     } catch (error) {
-      return response.status(500).json({
-        sucesso: false,
-        mensagem: 'Erro na requisição.',
-        dados: error.message
-      });
+       if (error.code === 'ER_DUP_ENTRY') {
+        return response.status(409).json({ sucesso: false, mensagem: 'Este item já foi favoritado.' });
+      }
+      return handleServerError(response, error);
     }
   },
 
+  // CORRIGIDO: A função de apagar agora é segura e valida o ID da farmácia.
   async apagarFavoritos(request, response) {
     try {
       const { fav_id } = request.params;
-      const sql = 'DELETE FROM favoritos WHERE fav_id = ?;';
-      const values = [fav_id];
-      const [rows] = await db.query(sql, values);
+      // O farmacia_id deve ser enviado no corpo da requisição para validação
+      const { farmacia_id } = request.body;
+
+      if (!farmacia_id) {
+        return response.status(400).json({ sucesso: false, mensagem: 'O ID da farmácia é obrigatório para excluir.' });
+      }
+
+      const sql = 'DELETE FROM favoritos WHERE fav_id = ? AND farmacia_id = ?;';
+      const values = [fav_id, farmacia_id];
+      const [result] = await db.query(sql, values);
+
+      if (result.affectedRows === 0) {
+        return response.status(404).json({
+          sucesso: false,
+          mensagem: 'Favorito não encontrado ou não pertence a esta farmácia.',
+        });
+      }
+
       return response.status(200).json({
         sucesso: true,
         mensagem: 'Favorito apagado com sucesso.',
-        dados: rows
       });
     } catch (error) {
-      return response.status(500).json({
-        sucesso: false,
-        mensagem: 'Erro na requisição.',
-        dados: error.message
-      });
+      return handleServerError(response, error);
     }
   },
+
 
   async listarFavoritosComLaboratorio(request, response) {
   try {

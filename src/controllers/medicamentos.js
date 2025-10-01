@@ -1,7 +1,7 @@
 const db = require('../dataBase/connection');
 
 const handleServerError = (response, error) => {
-  console.error(error); // Mantém o log do erro no servidor para monitoramento
+  console.error(error);
   return response.status(500).json({
     sucesso: false,
     mensagem: 'Ocorreu um erro inesperado no servidor. Tente novamente mais tarde.',
@@ -79,7 +79,32 @@ module.exports = {
     let connection;
     try {
         const { med_id } = request.params;
-        const { med_nome, med_dosagem, med_quantidade, forma_id, med_descricao, lab_id, med_imagem, tipo_id, med_ativo, farmacia_id, medp_preco } = request.body;
+        const body = request.body;
+
+        // NOVO: LÓGICA PARA ATIVAR/DESATIVAR DE FORMA SEGURA
+        // Verifica se a requisição é apenas para mudar o status
+        const isToggleStatusOnly = Object.keys(body).length === 2 && body.med_ativo !== undefined && body.farmacia_id !== undefined;
+
+        if (isToggleStatusOnly) {
+            const { med_ativo, farmacia_id } = body;
+
+            // Passo 1: Verifica se o medicamento realmente pertence à farmácia
+            const checkOwnerSql = 'SELECT farmacia_id FROM medpreco WHERE medicamento_id = ? AND farmacia_id = ?;';
+            const [ownerRows] = await db.query(checkOwnerSql, [med_id, farmacia_id]);
+
+            if (ownerRows.length === 0) {
+                return response.status(403).json({ sucesso: false, mensagem: 'Operação não permitida. Este medicamento não pertence à sua farmácia.' });
+            }
+
+            // Passo 2: Se pertence, atualiza o status na tabela principal
+            const updateStatusSql = 'UPDATE medicamento SET med_ativo = ? WHERE med_id = ?;';
+            await db.query(updateStatusSql, [med_ativo, med_id]);
+            
+            return response.status(200).json({ sucesso: true, mensagem: 'Status do medicamento atualizado com sucesso.' });
+        }
+        
+        // Lógica de edição completa do formulário (continua como antes)
+        const { med_nome, med_dosagem, med_quantidade, forma_id, med_descricao, lab_id, med_imagem, tipo_id, med_ativo, farmacia_id, medp_preco } = body;
 
         if (!farmacia_id) { return response.status(400).json({ sucesso: false, mensagem: 'A identificação da farmácia é obrigatória para a atualização.' }); }
         if (!med_nome || !med_dosagem || medp_preco === undefined) { return response.status(400).json({ sucesso: false, mensagem: 'Campos essenciais como nome, dosagem e preço são obrigatórios.' }); }
@@ -115,42 +140,25 @@ module.exports = {
     try {
       const { med_id } = request.params;
       const { farmacia_id } = request.body;
-
       if (!farmacia_id) {
         return response.status(400).json({ sucesso: false, mensagem: 'A identificação da farmácia é obrigatória para excluir.' });
       }
-      
       connection = await db.getConnection();
       await connection.beginTransaction();
-
       const sqlMedpreco = 'DELETE FROM medpreco WHERE medicamento_id = ? AND farmacia_id = ?;';
       const [resultMedpreco] = await connection.query(sqlMedpreco, [med_id, farmacia_id]);
-      
       if (resultMedpreco.affectedRows === 0) {
         await connection.rollback();
-        return response.status(403).json({
-          sucesso: false,
-          mensagem: 'Operação não permitida. Este medicamento não pertence à sua farmácia ou não existe.',
-        });
+        return response.status(403).json({ sucesso: false, mensagem: 'Operação não permitida. Este medicamento não pertence à sua farmácia ou não existe.' });
       }
-
       const sqlMedicamento = 'DELETE FROM medicamento WHERE med_id = ?;';
       const [resultMedicamento] = await connection.query(sqlMedicamento, [med_id]);
-
       if (resultMedicamento.affectedRows === 0) {
         await connection.rollback();
-        return response.status(404).json({
-          sucesso: false,
-          mensagem: 'Medicamento não encontrado na tabela principal, embora um preço tenha sido removido.',
-        });
+        return response.status(404).json({ sucesso: false, mensagem: 'Medicamento não encontrado na tabela principal, embora um preço tenha sido removido.' });
       }
-      
       await connection.commit();
-
-      return response.status(200).json({
-        sucesso: true,
-        mensagem: 'Medicamento apagado com sucesso.'
-      });
+      return response.status(200).json({ sucesso: true, mensagem: 'Medicamento apagado com sucesso.' });
     } catch (error) {
       if (connection) { await connection.rollback(); }
       return handleServerError(response, error);
