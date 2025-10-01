@@ -15,31 +15,46 @@ const TiposProdutoController = require("../controllers/tipoproduto");
 const FormaFarmaceuticaController = require("../controllers/farmaceuticas");
 const LaboratorioController = require("../controllers/laboratorio");
 const FuncionariosController = require("../controllers/funcionarios");
-
-// 1. Configuração do Multer
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        // O diretório onde as imagens serão salvas (crie esta pasta no seu projeto back-end)
-        cb(null, 'uploads/logos/');
-    },
-    filename: (req, file, cb) => {
-        // Define um nome de arquivo único para evitar conflitos
-        cb(null, `${Date.now()}-${file.originalname}`);
-    }
-});
-
-const upload = multer({ storage: storage });
-
-const uploadImage = require('../middleware/uploadHelper');
-
-// middleware configurado
-//const upload = uploadImage('teste');
-
 const ListarUnicoController = require("../controllers/listagem");
 const ListarParametroController = require("../controllers/parametros");
 const ListarInnerController = require("../controllers/innerjoin");
 const LoginFarmController = require("../controllers/loginFarm");
-const ListarFuncionarioPorId = require("../controllers/funcionarios");
+
+
+// ==================================================================
+// CONFIGURAÇÃO DO MULTER (UPLOAD DE ARQUIVOS)
+// ==================================================================
+
+// 1. Configuração para LOGOS (farmácias e laboratórios) - CONFIGURAÇÃO ÚNICA E CORRIGIDA
+const storageLogos = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/logos/'); // Salva logos nesta pasta
+    },
+    filename: (req, file, cb) => {
+        // Garante que o nome do arquivo seja único e inclui a extensão original
+        const extension = file.originalname.split('.').pop();
+        cb(null, `${Date.now()}-${file.fieldname}.${extension}`);
+    }
+});
+// Variável de upload unificada para Farmácias e Laboratórios
+const uploadLogo = multer({ storage: storageLogos });
+
+// 2. Configuração para IMAGENS DE MEDICAMENTOS
+const storageMedicamentos = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/medicamentos/'); // Salva imagens de medicamentos nesta pasta
+    },
+    filename: (req, file, cb) => {
+        const extension = file.originalname.split('.').pop();
+        cb(null, `${Date.now()}-${file.fieldname}.${extension}`);
+    }
+});
+const uploadMedicamento = multer({ storage: storageMedicamentos });
+
+
+// ==================================================================
+// DEFINIÇÃO DAS ROTAS
+// ==================================================================
 
 // Routes para cidades
 router.get("/cidades", CidadesController.listarCidade);
@@ -51,31 +66,29 @@ router.get("/cidades/:cidade_id", ListarUnicoController.listarUnicaCidade);
 router.get("/cidade", ListarParametroController.listarCidadeParametro);
 router.get("/cidade/cidadelimit", ListarUnicoController.listarLimiteCidade);
 
-// Routes para farmácias
-//router.get("/farmacias", FarmaciasController.listarFarmacias);
-router.post("/farmacias", upload.any(), FarmaciasController.cadastrarFarmacias);
-router.put("/farmacias/:farm_id", FarmaciasController.editarFarmacias);
-router.delete("/farmacias/:farm_id", FarmaciasController.apagarFarmacias);
-//router.get("/farmacias/:farm_id", ListarUnicoController.listarUnicaFarmacia);
+// ### ROTAS DE FARMÁCIAS CORRIGIDAS ###
+// OBS: Utilizamos 'uploadLogo' para farmácias, pois a configuração 'storageLogos' foi criada para este fim.
+router.get('/farmacias', FarmaciasController.listarFarmacias); 
 router.get('/farmacias/:farm_id', FarmaciasController.listarFarmaciaPorId);
-
+// Rota de POST (Cadastro): usa uploadLogo.single('farm_logo')
+router.post("/farmacias", uploadLogo.single('farm_logo'), FarmaciasController.cadastrarFarmacias);
+// Rota de PUT (Edição): usa uploadLogo.single('farm_logo')
+router.put("/farmacias/:farm_id", uploadLogo.single('farm_logo'), FarmaciasController.editarFarmacias); 
+router.delete("/farmacias/:farm_id", FarmaciasController.apagarFarmacias);
+// Novas rotas para redefinição de senha
+router.post("/farmacias/verificar-email", FarmaciasController.verificarEmail);
+router.post("/farmacias/redefinir-senha-por-email", FarmaciasController.redefinirSenhaPorEmail);
+// ### FIM: ROTAS DE FARMÁCIAS CORRIGIDAS ###
 
 // Routes para medicamentos
-// GET /medicamentos -> Lista todos os medicamentos de uma farmácia (via query string)
 router.get("/medicamentos", MedicamentosController.listarMedicamentos);
-
-// POST /medicamentos -> Cadastra um novo medicamento
-router.post("/medicamentos", MedicamentosController.cadastrarMedicamentos);
-
-// GET /medicamentos/:med_id -> Busca um medicamento específico de uma farmácia
+router.get('/medicamentos/todos', MedicamentosController.listarTodosMedicamentosPaginado);
+// Rota de POST (Cadastro): usa uploadMedicamento.single('med_imagem')
+router.post("/medicamentos", uploadMedicamento.single('med_imagem'), MedicamentosController.cadastrarMedicamentos);
 router.get("/medicamentos/:med_id", MedicamentosController.listarMedicamentoPorId);
-
-// PUT /medicamentos/:med_id -> Atualiza um medicamento específico
-router.put("/medicamentos/:med_id", MedicamentosController.editarMedicamentos);
-
-// DELETE /medicamentos/:med_id -> Apaga um medicamento específico
+// Rota de PUT (Edição): usa uploadMedicamento.single('med_imagem')
+router.put("/medicamentos/:med_id", uploadMedicamento.single('med_imagem'), MedicamentosController.editarMedicamentos); 
 router.delete("/medicamentos/:med_id", MedicamentosController.apagarMedicamentos);
-
 
 // Routes para precos medicamentos
 router.get("/medpreco", MedPrecoController.listarMedPreco);
@@ -106,13 +119,11 @@ router.patch("/farmaceutica/:forma_id", FormaFarmaceuticaController.editarFarmac
 router.delete("/farmaceutica/:forma_id", FormaFarmaceuticaController.apagarFarmaceutica);
 router.get("/farmaceutica/:forma_id", ListarUnicoController.listarUnicaFormaFarmaceutica);
 
-
 // Routes para laboratórios
+// Utiliza 'uploadLogo'
 router.get("/laboratorios", LaboratorioController.listarLaboratorio);
-router.post('/laboratorios', upload.single('lab_logo'), LaboratorioController.cadastrarLaboratorio);
-//router.post("/laboratorios", LaboratorioController.cadastrarLaboratorio);
-router.put('/laboratorios/:lab_id', upload.single('lab_logo'), LaboratorioController.editarLaboratorio);
-//router.patch("/laboratorio/:lab_id", LaboratorioController.editarLaboratorio);
+router.post('/laboratorios', uploadLogo.single('lab_logo'), LaboratorioController.cadastrarLaboratorio);
+router.put('/laboratorios/:lab_id', uploadLogo.single('lab_logo'), LaboratorioController.editarLaboratorio);
 router.delete("/laboratorios/:lab_id", LaboratorioController.apagarLaboratorio);
 router.get("/laboratorio/:lab_id", ListarUnicoController.listarUnicoLaboratorio);
 
@@ -141,10 +152,11 @@ router.get("/avaliacao/:ava_id", ListarUnicoController.listarUnicaAvaliacao);
 router.get("/favoritos", FavoritosController.listarFavoritos);
 router.post("/favoritos", FavoritosController.cadastrarFavoritos);
 router.delete("/favoritos/:fav_id", FavoritosController.apagarFavoritos);
-// router.get("/favoritos/:fav_id", ListarUnicoController.listarUnicoFavorito);
 router.get("/favoritos/:fav_id", FavoritosController.listarFavoritosComLaboratorio);
 router.get('/favoritos/:farm_id/favoritos', FavoritosController.listarFavoritosPorFarmacia);
 
-router.post("/loginfarm", LoginFarmController.login);
+// Rota de Login
+router.post("/loginfarm", LoginFarmController.loginFarm);
+router.post("/loginfunc", LoginFarmController.loginFunc);
 
 module.exports = router;

@@ -24,6 +24,37 @@ module.exports = {
     }
   },
 
+  async listarTodosMedicamentosPaginado(request, response) {
+    try {
+      const page = parseInt(request.query.page || '1', 10);
+      const limit = parseInt(request.query.limit || '10', 10);
+      const offset = (page - 1) * limit;
+      const countSql = 'SELECT COUNT(*) as total FROM medicamento;';
+      const [[{ total: totalItens }]] = await db.query(countSql);
+      const totalPaginas = Math.ceil(totalItens / limit);
+      const dataSql = `
+        SELECT m.med_id, m.med_nome, m.med_dosagem, m.med_quantidade, m.med_imagem
+        FROM medicamento m
+        LIMIT ?
+        OFFSET ?;
+      `;
+      const values = [limit, offset];
+      const [rows] = await db.query(dataSql, values);
+      return response.status(200).json({
+        sucesso: true,
+        mensagem: `Página ${page} de medicamentos recuperada com sucesso.`,
+        dados: rows,
+        paginacao: {
+          paginaAtual: page,
+          totalItens: totalItens,
+          totalPaginas: totalPaginas,
+        },
+      });
+    } catch (error) {
+      return handleServerError(response, error);
+    }
+  },
+
   async listarMedicamentoPorId(request, response) {
     try {
       const { med_id } = request.params;
@@ -46,25 +77,35 @@ module.exports = {
     }
   },
 
+  // ### CONTROLLER DE CADASTRO CORRIGIDO ###
   async cadastrarMedicamentos(request, response) {
     let connection; 
     try {
-      const { med_nome, med_dosagem, med_quantidade, med_cod_barras, forma_id, med_descricao, lab_id, med_imagem, tipo_id, farmacia_id, med_preco } = request.body;
-      if (!med_nome || !med_dosagem || !med_cod_barras || !tipo_id || !forma_id || !lab_id || !farmacia_id || med_preco === undefined) {
+      const { med_nome, med_dosagem, med_quantidade, med_cod_barras, forma_id, med_descricao, lab_id, tipo_id, farmacia_id, med_preco } = request.body;
+      const med_imagem = request.file ? request.file.path : null;
+
+      // 1. CORREÇÃO: Adicionado 'med_quantidade' na verificação de campos obrigatórios
+      if (!med_nome || !med_dosagem || !med_quantidade || !med_cod_barras || !tipo_id || !forma_id || !lab_id || !farmacia_id || med_preco === undefined) {
         return response.status(400).json({ sucesso: false, mensagem: 'Todos os campos obrigatórios devem ser fornecidos.' });
       }
-      if (parseFloat(med_preco) <= 0 || parseInt(med_quantidade) <= 0) {
-        return response.status(400).json({ sucesso: false, mensagem: 'Preço e quantidade devem ser valores positivos.' });
+      
+      // 2. CORREÇÃO: Removida a validação 'parseInt(med_quantidade)' que não se aplica mais
+      if (parseFloat(med_preco) <= 0) {
+        return response.status(400).json({ sucesso: false, mensagem: 'O preço deve ser um valor positivo.' });
       }
+      
       connection = await db.getConnection();
       await connection.beginTransaction();
+
       const sqlMedicamento = `INSERT INTO medicamento (med_nome, med_dosagem, med_quantidade, med_cod_barras, forma_id, med_descricao, lab_id, med_imagem, tipo_id, med_ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
       const valuesMedicamento = [med_nome, med_dosagem, med_quantidade, med_cod_barras, forma_id, med_descricao, lab_id, med_imagem, tipo_id, 1];
       const [resultMedicamento] = await connection.query(sqlMedicamento, valuesMedicamento);
       const novoMedicamentoId = resultMedicamento.insertId;
+
       const sqlMedpreco = `INSERT INTO medpreco (farmacia_id, medicamento_id, medp_preco) VALUES (?, ?, ?);`;
       const valuesMedpreco = [farmacia_id, novoMedicamentoId, med_preco];
       await connection.query(sqlMedpreco, valuesMedpreco);
+      
       await connection.commit();
       return response.status(201).json({ sucesso: true, mensagem: 'Medicamento e preço cadastrados com sucesso.', dados: { med_id: novoMedicamentoId } });
     } catch (error) {
@@ -81,48 +122,51 @@ module.exports = {
         const { med_id } = request.params;
         const body = request.body;
 
-        // NOVO: LÓGICA PARA ATIVAR/DESATIVAR DE FORMA SEGURA
-        // Verifica se a requisição é apenas para mudar o status
         const isToggleStatusOnly = Object.keys(body).length === 2 && body.med_ativo !== undefined && body.farmacia_id !== undefined;
-
         if (isToggleStatusOnly) {
+            // (código para ativar/desativar sem alteração)
             const { med_ativo, farmacia_id } = body;
+            const sqlCheckOwner = 'SELECT COUNT(*) as count FROM medpreco WHERE medicamento_id = ? AND farmacia_id = ?';
+            const [[{ count }]] = await db.query(sqlCheckOwner, [med_id, farmacia_id]);
 
-            // Passo 1: Verifica se o medicamento realmente pertence à farmácia
-            const checkOwnerSql = 'SELECT farmacia_id FROM medpreco WHERE medicamento_id = ? AND farmacia_id = ?;';
-            const [ownerRows] = await db.query(checkOwnerSql, [med_id, farmacia_id]);
-
-            if (ownerRows.length === 0) {
-                return response.status(403).json({ sucesso: false, mensagem: 'Operação não permitida. Este medicamento não pertence à sua farmácia.' });
+            if (count === 0) {
+              return response.status(403).json({ sucesso: false, mensagem: 'Operação não permitida. Este medicamento não pertence à sua farmácia.' });
             }
-
-            // Passo 2: Se pertence, atualiza o status na tabela principal
-            const updateStatusSql = 'UPDATE medicamento SET med_ativo = ? WHERE med_id = ?;';
-            await db.query(updateStatusSql, [med_ativo, med_id]);
-            
+        
+            const sqlUpdateStatus = 'UPDATE medicamento SET med_ativo = ? WHERE med_id = ?';
+            await db.query(sqlUpdateStatus, [med_ativo, med_id]);
             return response.status(200).json({ sucesso: true, mensagem: 'Status do medicamento atualizado com sucesso.' });
         }
         
-        // Lógica de edição completa do formulário (continua como antes)
-        const { med_nome, med_dosagem, med_quantidade, forma_id, med_descricao, lab_id, med_imagem, tipo_id, med_ativo, farmacia_id, medp_preco } = body;
+        const { med_nome, med_dosagem, med_quantidade, forma_id, med_descricao, lab_id, tipo_id, med_ativo, farmacia_id, medp_preco } = body;
+        const nova_imagem_path = request.file ? request.file.path : null;
 
-        if (!farmacia_id) { return response.status(400).json({ sucesso: false, mensagem: 'A identificação da farmácia é obrigatória para a atualização.' }); }
-        if (!med_nome || !med_dosagem || medp_preco === undefined) { return response.status(400).json({ sucesso: false, mensagem: 'Campos essenciais como nome, dosagem e preço são obrigatórios.' }); }
+        if (!farmacia_id || !med_nome || !med_dosagem || medp_preco === undefined) { 
+            return response.status(400).json({ sucesso: false, mensagem: 'Campos essenciais são obrigatórios.' }); 
+        }
         
         connection = await db.getConnection();
         await connection.beginTransaction();
 
         const sqlMedpreco = `UPDATE medpreco SET medp_preco = ? WHERE medicamento_id = ? AND farmacia_id = ?;`;
-        const valuesMedpreco = [medp_preco, med_id, farmacia_id];
-        const [resultMedpreco] = await connection.query(sqlMedpreco, valuesMedpreco);
+        const [resultMedpreco] = await connection.query(sqlMedpreco, [medp_preco, med_id, farmacia_id]);
 
         if (resultMedpreco.affectedRows === 0) {
             await connection.rollback();
-            return response.status(403).json({ sucesso: false, mensagem: 'Operação não permitida. Este medicamento não pertence à sua farmácia ou não existe.' });
+            return response.status(403).json({ sucesso: false, mensagem: 'Operação não permitida. Medicamento não pertence à sua farmácia.' });
         }
 
-        const sqlMedicamento = `UPDATE medicamento SET med_nome = ?, med_dosagem = ?, med_quantidade = ?, forma_id = ?, med_descricao = ?, lab_id = ?, med_imagem = ?, tipo_id = ?, med_ativo = ? WHERE med_id = ?;`;
-        const valuesMedicamento = [med_nome, med_dosagem, med_quantidade, forma_id, med_descricao, lab_id, med_imagem, tipo_id, med_ativo, med_id];
+        let sqlMedicamento;
+        let valuesMedicamento;
+
+        if (nova_imagem_path) {
+            sqlMedicamento = `UPDATE medicamento SET med_nome = ?, med_dosagem = ?, med_quantidade = ?, forma_id = ?, med_descricao = ?, lab_id = ?, med_imagem = ?, tipo_id = ?, med_ativo = ? WHERE med_id = ?;`;
+            valuesMedicamento = [med_nome, med_dosagem, med_quantidade, forma_id, med_descricao, lab_id, nova_imagem_path, tipo_id, med_ativo, med_id];
+        } else {
+            sqlMedicamento = `UPDATE medicamento SET med_nome = ?, med_dosagem = ?, med_quantidade = ?, forma_id = ?, med_descricao = ?, lab_id = ?, tipo_id = ?, med_ativo = ? WHERE med_id = ?;`;
+            valuesMedicamento = [med_nome, med_dosagem, med_quantidade, forma_id, med_descricao, lab_id, tipo_id, med_ativo, med_id];
+        }
+        
         await connection.query(sqlMedicamento, valuesMedicamento);
 
         await connection.commit();
@@ -134,6 +178,7 @@ module.exports = {
         if (connection) { connection.release(); }
     }
   },
+
 
   async apagarMedicamentos(request, response) {
     let connection;

@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require('cors'); 
+const path = require('path');
 
 // O ideal é que o seu arquivo de rotas principal controle todas as rotas.
 // A rota get("/") foi removida daqui e deve ser colocada no seu arquivo de rotas se necessária.
@@ -12,7 +13,10 @@ app.use(express.json());
 app.use(router);
 
 // tornando a pasta public acessível para imagens
-app.use("/public", express.static("public"));
+//app.use("/public", express.static("public"));
+
+// Libera o acesso público à pasta 'uploads'
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const porta = process.env.PORT || 3334;
 
