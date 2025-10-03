@@ -18,7 +18,7 @@ app.use("/public", express.static("public"));
 // Libera o acesso público à pasta 'uploads'
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-const porta = process.env.PORT || 3334;
+const porta = process.env.PORT || 3333;
 
 app.listen(porta, () => {
   // CORREÇÃO: A mensagem agora exibe a variável "porta" corretamente.
