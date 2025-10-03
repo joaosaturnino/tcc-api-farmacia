@@ -16,8 +16,8 @@ const FormaFarmaceuticaController = require("../controllers/farmaceuticas");
 const LaboratorioController = require("../controllers/laboratorio");
 const FuncionariosController = require("../controllers/funcionarios");
 const ListarUnicoController = require("../controllers/listagem");
-const ListarParametroController = require("../controllers/parametros");
-const ListarInnerController = require("../controllers/innerjoin");
+
+
 const LoginFarmController = require("../controllers/loginFarm");
 
 // ==================================================================
@@ -62,8 +62,7 @@ router.post("/cidades", CidadesController.cadastrarCidade);
 router.patch("/cidades/:cidade_id", CidadesController.editarCidade);
 router.delete("/cidades/:cidade_id", CidadesController.apagarCidade);
 router.get("/cidades/:cidade_id", ListarUnicoController.listarUnicaCidade);
-router.get("/cidade", ListarParametroController.listarCidadeParametro);
-router.get("/cidade/cidadelimit", ListarUnicoController.listarLimiteCidade);
+
 
 // ### ROTAS DE FARMÁCIAS CORRIGIDAS ###
 // OBS: Utilizamos 'uploadLogo' para farmácias, pois a configuração 'storageLogos' foi criada para este fim.
