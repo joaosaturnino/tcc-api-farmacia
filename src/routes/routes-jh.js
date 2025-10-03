@@ -139,6 +139,7 @@ router.post("/usuarios", UsuariosController.cadastrarUsuario);
 router.patch("/usuarios/:usu_id", UsuariosController.editarUsuario);
 router.delete("/usuarios/:usu_id", UsuariosController.apagarUsuario);
 router.get("/usuarios/:usu_id", ListarUnicoController.listarUnicoUsuario);
+router.post("/usuarios/login", UsuariosController.loginUsuario); // Rota de login
 
 // Routes para avaliações
 router.get("/avaliacao", AvaliacaoController.listarAvaliacao);
