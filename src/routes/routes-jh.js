@@ -20,7 +20,6 @@ const ListarParametroController = require("../controllers/parametros");
 const ListarInnerController = require("../controllers/innerjoin");
 const LoginFarmController = require("../controllers/loginFarm");
 
-
 // ==================================================================
 // CONFIGURAÇÃO DO MULTER (UPLOAD DE ARQUIVOS)
 // ==================================================================
