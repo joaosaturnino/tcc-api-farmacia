@@ -20,6 +20,21 @@ module.exports = {
     }
   },
 
+  async listarMedicamentosLab(request, response) {
+    try {
+      const { lab_id } = request.query;
+      if (!lab_id) {
+        return response.status(400).json({ sucesso: false, mensagem: 'O parâmetro lab_id é obrigatório.' });
+      }
+      const sql = `SELECT m.med_id, m.med_nome, m.med_dosagem, m.med_quantidade, m.med_cod_barras, m.forma_id, m.med_descricao, l.lab_nome, m.med_imagem, m.tipo_id, m.med_data_cadastro, m.med_data_atualizacao, m.med_ativo, mp.medp_preco, mp.farmacia_id FROM medicamento m INNER JOIN medpreco mp ON m.med_id = mp.medicamento_id INNER JOIN laboratorios l ON m.lab_id = l.lab_id WHERE l.lab_id = ?;`;
+      const values = [farmacia_id];
+      const [rows] = await db.query(sql, values);
+      return response.status(200).json({ sucesso: true, mensagem: 'Lista de medicamentos recuperada com sucesso.', itens: rows.length, dados: rows });
+    } catch (error) {
+      return handleServerError(response, error);
+    }
+  },
+
   // CORRIGIDO
   async cadastrarLaboratorio(request, response) {
     try {

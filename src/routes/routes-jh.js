@@ -120,11 +120,12 @@ router.get("/farmaceutica/:forma_id", ListarUnicoController.listarUnicaFormaFarm
 
 // Routes para laboratórios
 // Utiliza 'uploadLogo'
-router.get("/laboratorios", LaboratorioController.listarLaboratorio);
+//router.get("/laboratorios", LaboratorioController.listarLaboratorio);
 router.post('/laboratorios', uploadLogo.single('lab_logo'), LaboratorioController.cadastrarLaboratorio);
 router.put('/laboratorios/:lab_id', uploadLogo.single('lab_logo'), LaboratorioController.editarLaboratorio);
 router.delete("/laboratorios/:lab_id", LaboratorioController.apagarLaboratorio);
-router.get("/laboratorio/:lab_id", ListarUnicoController.listarUnicoLaboratorio);
+//router.get("/laboratorio/:lab_id", ListarUnicoController.listarUnicoLaboratorio);
+router.get("/laboratorios/", LaboratorioController.listarMedicamentosLab);
 
 // Routes para funcionários
 router.get("/funcionario", FuncionariosController.listarFuncionarios);
