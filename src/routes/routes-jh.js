@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const multer = require('multer');
+
+// CORREÇÃO: Importar o helper de upload centralizado em vez de configurar o multer aqui.
+const uploadImage = require("../middleware/uploadHelper");
 
 // Importando todos os controllers
 const CidadesController = require("../controllers/cidades");
@@ -21,34 +23,18 @@ const ListarInnerController = require("../controllers/innerjoin");
 const LoginFarmController = require("../controllers/loginFarm");
 
 // ==================================================================
-// CONFIGURAÇÃO DO MULTER (UPLOAD DE ARQUIVOS)
+// CONFIGURAÇÃO DO UPLOAD DE ARQUIVOS
 // ==================================================================
 
-// 1. Configuração para LOGOS (farmácias e laboratórios) - CONFIGURAÇÃO ÚNICA E CORRIGIDA
-const storageLogos = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/logos/'); // Salva logos nesta pasta
-    },
-    filename: (req, file, cb) => {
-        // Garante que o nome do arquivo seja único e inclui a extensão original
-        const extension = file.originalname.split('.').pop();
-        cb(null, `${Date.now()}-${file.fieldname}.${extension}`);
-    }
-});
-// Variável de upload unificada para Farmácias e Laboratórios
-const uploadLogo = multer({ storage: storageLogos });
+// CORREÇÃO: As configurações duplicadas do multer foram removidas.
+// Agora, criamos instâncias de middleware de upload de forma dinâmica,
+// chamando a função do helper com a pasta de destino desejada.
 
-// 2. Configuração para IMAGENS DE MEDICAMENTOS
-const storageMedicamentos = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/medicamentos/'); // Salva imagens de medicamentos nesta pasta
-    },
-    filename: (req, file, cb) => {
-        const extension = file.originalname.split('.').pop();
-        cb(null, `${Date.now()}-${file.fieldname}.${extension}`);
-    }
-});
-const uploadMedicamento = multer({ storage: storageMedicamentos });
+// Middleware configurado para a pasta 'logos' (para farmácias e laboratórios)
+const uploadLogo = uploadImage('logos');
+
+// Middleware configurado para a pasta 'medicamentos'
+const uploadMedicamento = uploadImage('medicamentos');
 
 
 // ==================================================================
@@ -66,26 +52,20 @@ router.get("/cidade", ListarParametroController.listarCidadeParametro);
 router.get("/cidade/cidadelimit", ListarUnicoController.listarLimiteCidade);
 
 // ### ROTAS DE FARMÁCIAS CORRIGIDAS ###
-// OBS: Utilizamos 'uploadLogo' para farmácias, pois a configuração 'storageLogos' foi criada para este fim.
 router.get('/farmacias', FarmaciasController.listarFarmacias); 
 router.get('/farmacias/:farm_id', FarmaciasController.listarFarmaciaPorId);
-// Rota de POST (Cadastro): usa uploadLogo.single('farm_logo')
 router.post("/farmacias", uploadLogo.single('farm_logo'), FarmaciasController.cadastrarFarmacias);
-// Rota de PUT (Edição): usa uploadLogo.single('farm_logo')
 router.put("/farmacias/:farm_id", uploadLogo.single('farm_logo'), FarmaciasController.editarFarmacias); 
 router.delete("/farmacias/:farm_id", FarmaciasController.apagarFarmacias);
-// Novas rotas para redefinição de senha
 router.post("/farmacias/verificar-email", FarmaciasController.verificarEmail);
 router.post("/farmacias/redefinir-senha-por-email", FarmaciasController.redefinirSenhaPorEmail);
-// ### FIM: ROTAS DE FARMÁCIAS CORRIGIDAS ###
+router.get('/farmacias/:farm_id/medicamentos', FarmaciasController.listarMedicamentosPorFarmacia);
 
 // Routes para medicamentos
 router.get("/medicamentos", MedicamentosController.listarMedicamentos);
 router.get('/medicamentos/todos', MedicamentosController.listarTodosMedicamentosPaginado);
-// Rota de POST (Cadastro): usa uploadMedicamento.single('med_imagem')
 router.post("/medicamentos", uploadMedicamento.single('med_imagem'), MedicamentosController.cadastrarMedicamentos);
 router.get("/medicamentos/:med_id", MedicamentosController.listarMedicamentoPorId);
-// Rota de PUT (Edição): usa uploadMedicamento.single('med_imagem')
 router.put("/medicamentos/:med_id", uploadMedicamento.single('med_imagem'), MedicamentosController.editarMedicamentos); 
 router.delete("/medicamentos/:med_id", MedicamentosController.apagarMedicamentos);
 
@@ -119,12 +99,10 @@ router.delete("/farmaceutica/:forma_id", FormaFarmaceuticaController.apagarFarma
 router.get("/farmaceutica/:forma_id", ListarUnicoController.listarUnicaFormaFarmaceutica);
 
 // Routes para laboratórios
-// Utiliza 'uploadLogo'
-//router.get("/laboratorios", LaboratorioController.listarLaboratorio);
+router.get("/laboratorios", LaboratorioController.listarLaboratorio);
 router.post('/laboratorios', uploadLogo.single('lab_logo'), LaboratorioController.cadastrarLaboratorio);
 router.put('/laboratorios/:lab_id', uploadLogo.single('lab_logo'), LaboratorioController.editarLaboratorio);
 router.delete("/laboratorios/:lab_id", LaboratorioController.apagarLaboratorio);
-//router.get("/laboratorio/:lab_id", ListarUnicoController.listarUnicoLaboratorio);
 router.get("/laboratorios/", LaboratorioController.listarMedicamentosLab);
 
 // Routes para funcionários
@@ -137,10 +115,11 @@ router.get("/funcionario/:func_id", FuncionariosController.listarFuncionarioPorI
 // Routes para usuários
 router.get("/usuarios", UsuariosController.listarUsuario);
 router.post("/usuarios", UsuariosController.cadastrarUsuario);
-router.patch("/usuarios/:usu_id", UsuariosController.editarUsuario);
+router.put("/usuarios/:usu_id", UsuariosController.editarUsuario);
 router.delete("/usuarios/:usu_id", UsuariosController.apagarUsuario);
 router.get("/usuarios/:usu_id", ListarUnicoController.listarUnicoUsuario);
-router.post("/usuarios/login", UsuariosController.loginUsuario); // Rota de login
+router.post("/usuarios/login", UsuariosController.loginUsuario);
+router.get('/usuarios/:usu_id', UsuariosController.listarUsuarioPorId);
 
 // Routes para avaliações
 router.get("/avaliacao", AvaliacaoController.listarAvaliacao);
@@ -153,8 +132,10 @@ router.get("/avaliacao/:ava_id", ListarUnicoController.listarUnicaAvaliacao);
 router.get("/favoritos", FavoritosController.listarFavoritos);
 router.post("/favoritos", FavoritosController.cadastrarFavoritos);
 router.delete("/favoritos/:fav_id", FavoritosController.apagarFavoritos);
-router.get("/favoritos/:fav_id", FavoritosController.listarFavoritosComLaboratorio);
+//router.get("/favoritos/:fav_id", FavoritosController.listarFavoritosComLaboratorio);
 router.get('/favoritos/:farm_id/favoritos', FavoritosController.listarFavoritosPorFarmacia);
+router.get('/favoritos/usuario/:usuario_id', FavoritosController.listarFavoritosPorUsuario);
+router.get('/favoritos/usuario/:usuario_id', FavoritosController.listarFavoritosPorUsuario);
 
 // Rota de Login
 router.post("/loginfarm", LoginFarmController.loginFarm);

@@ -1,4 +1,6 @@
 const db = require('../dataBase/connection');
+// CORREÇÃO: Importar a função para gerar a URL completa da imagem.
+const { gerarUrl } = require('../utils/gerarUrl');
 
 const handleServerError = (response, error) => {
   console.error(error);
@@ -18,7 +20,14 @@ module.exports = {
       const sql = `SELECT m.med_id, m.med_nome, m.med_dosagem, m.med_quantidade, m.med_cod_barras, m.forma_id, m.med_descricao, l.lab_nome, m.med_imagem, m.tipo_id, m.med_data_cadastro, m.med_data_atualizacao, m.med_ativo, mp.medp_preco, mp.farmacia_id FROM medicamento m INNER JOIN medpreco mp ON m.med_id = mp.medicamento_id INNER JOIN laboratorios l ON m.lab_id = l.lab_id WHERE mp.farmacia_id = ?;`;
       const values = [farmacia_id];
       const [rows] = await db.query(sql, values);
-      return response.status(200).json({ sucesso: true, mensagem: 'Lista de medicamentos recuperada com sucesso.', itens: rows.length, dados: rows });
+
+      // CORREÇÃO: Mapeia os resultados para transformar o nome da imagem em uma URL completa.
+      const dados = rows.map(medicamento => ({
+        ...medicamento,
+        med_imagem: gerarUrl(medicamento.med_imagem, 'medicamentos', 'sem-imagem.png')
+      }));
+
+      return response.status(200).json({ sucesso: true, mensagem: 'Lista de medicamentos recuperada com sucesso.', itens: dados.length, dados: dados });
     } catch (error) {
       return handleServerError(response, error);
     }
@@ -40,10 +49,17 @@ module.exports = {
       `;
       const values = [limit, offset];
       const [rows] = await db.query(dataSql, values);
+
+      // CORREÇÃO: Mapeia os resultados para transformar o nome da imagem em uma URL completa.
+      const dados = rows.map(medicamento => ({
+        ...medicamento,
+        med_imagem: geraUrl(medicamento.med_imagem, 'medicamentos', 'sem-imagem.png')
+      }));
+
       return response.status(200).json({
         sucesso: true,
         mensagem: `Página ${page} de medicamentos recuperada com sucesso.`,
-        dados: rows,
+        dados: dados,
         paginacao: {
           paginaAtual: page,
           totalItens: totalItens,
@@ -71,25 +87,30 @@ module.exports = {
       if (rows.length === 0) {
         return response.status(404).json({ sucesso: false, mensagem: 'Medicamento não encontrado ou não pertence a esta farmácia.' });
       }
-      return response.status(200).json({ sucesso: true, mensagem: 'Dados do medicamento recuperados com sucesso.', dados: rows[0] });
+      
+      // CORREÇÃO: Transforma o nome da imagem em uma URL completa para o objeto único.
+      const medicamento = rows[0];
+      medicamento.med_imagem = gerarUrl(medicamento.med_imagem, 'medicamentos', 'sem-imagem.png');
+
+      return response.status(200).json({ sucesso: true, mensagem: 'Dados do medicamento recuperados com sucesso.', dados: medicamento });
     } catch (error) {
       return handleServerError(response, error);
     }
   },
 
-  // ### CONTROLLER DE CADASTRO CORRIGIDO ###
   async cadastrarMedicamentos(request, response) {
     let connection; 
     try {
       const { med_nome, med_dosagem, med_quantidade, med_cod_barras, forma_id, med_descricao, lab_id, tipo_id, farmacia_id, med_preco } = request.body;
-      const med_imagem = request.file ? request.file.path : null;
+      
+      // CORREÇÃO: Salvar apenas o 'filename' em vez do 'path' completo.
+      // Isso desacopla a estrutura de pastas do servidor dos dados no banco.
+      const med_imagem = request.file ? request.file.filename : null;
 
-      // 1. CORREÇÃO: Adicionado 'med_quantidade' na verificação de campos obrigatórios
       if (!med_nome || !med_dosagem || !med_quantidade || !med_cod_barras || !tipo_id || !forma_id || !lab_id || !farmacia_id || med_preco === undefined) {
         return response.status(400).json({ sucesso: false, mensagem: 'Todos os campos obrigatórios devem ser fornecidos.' });
       }
       
-      // 2. CORREÇÃO: Removida a validação 'parseInt(med_quantidade)' que não se aplica mais
       if (parseFloat(med_preco) <= 0) {
         return response.status(400).json({ sucesso: false, mensagem: 'O preço deve ser um valor positivo.' });
       }
@@ -124,7 +145,6 @@ module.exports = {
 
         const isToggleStatusOnly = Object.keys(body).length === 2 && body.med_ativo !== undefined && body.farmacia_id !== undefined;
         if (isToggleStatusOnly) {
-            // (código para ativar/desativar sem alteração)
             const { med_ativo, farmacia_id } = body;
             const sqlCheckOwner = 'SELECT COUNT(*) as count FROM medpreco WHERE medicamento_id = ? AND farmacia_id = ?';
             const [[{ count }]] = await db.query(sqlCheckOwner, [med_id, farmacia_id]);
@@ -139,7 +159,9 @@ module.exports = {
         }
         
         const { med_nome, med_dosagem, med_quantidade, forma_id, med_descricao, lab_id, tipo_id, med_ativo, farmacia_id, medp_preco } = body;
-        const nova_imagem_path = request.file ? request.file.path : null;
+        
+        // CORREÇÃO: Salvar apenas o 'filename' da nova imagem.
+        const nova_imagem_nome = request.file ? request.file.filename : null;
 
         if (!farmacia_id || !med_nome || !med_dosagem || medp_preco === undefined) { 
             return response.status(400).json({ sucesso: false, mensagem: 'Campos essenciais são obrigatórios.' }); 
@@ -159,9 +181,9 @@ module.exports = {
         let sqlMedicamento;
         let valuesMedicamento;
 
-        if (nova_imagem_path) {
+        if (nova_imagem_nome) {
             sqlMedicamento = `UPDATE medicamento SET med_nome = ?, med_dosagem = ?, med_quantidade = ?, forma_id = ?, med_descricao = ?, lab_id = ?, med_imagem = ?, tipo_id = ?, med_ativo = ? WHERE med_id = ?;`;
-            valuesMedicamento = [med_nome, med_dosagem, med_quantidade, forma_id, med_descricao, lab_id, nova_imagem_path, tipo_id, med_ativo, med_id];
+            valuesMedicamento = [med_nome, med_dosagem, med_quantidade, forma_id, med_descricao, lab_id, nova_imagem_nome, tipo_id, med_ativo, med_id];
         } else {
             sqlMedicamento = `UPDATE medicamento SET med_nome = ?, med_dosagem = ?, med_quantidade = ?, forma_id = ?, med_descricao = ?, lab_id = ?, tipo_id = ?, med_ativo = ? WHERE med_id = ?;`;
             valuesMedicamento = [med_nome, med_dosagem, med_quantidade, forma_id, med_descricao, lab_id, tipo_id, med_ativo, med_id];
@@ -178,7 +200,6 @@ module.exports = {
         if (connection) { connection.release(); }
     }
   },
-
 
   async apagarMedicamentos(request, response) {
     let connection;

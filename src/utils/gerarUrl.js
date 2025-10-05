@@ -1,59 +1,52 @@
 const fse = require('fs-extra');
 const path = require('path');
-const { URL } = require('url'); // Módulo nativo do Node.js para trabalhar com URLs
+const { URL } = require('url');
 
 /**
- * Caminho físico para a pasta 'public'.
+ * Caminho físico para a pasta 'public' onde as imagens estão.
  */
 const PUBLIC_ROOT_PATH = path.join(process.cwd(), 'public');
 
 /**
- * Lê a URL base da API a partir das variáveis de ambiente.
- * Fornece um valor padrão caso a variável não esteja definida.
+ * Lê a URL base da API a partir das variáveis de ambiente (.env).
+ * Se a variável não for encontrada, ele usa 'localhost' como um fallback para desenvolvimento.
+ * ESTA É A LINHA MAIS IMPORTANTE PARA O SEU PROBLEMA.
  */
-const API_URL = process.env.API_BASE_URL || 'http://localhost:3334';
-
-// NOVO: Define o prefixo de rota que o Express usa para servir arquivos de LOGO/UPLOAD
-// Deve corresponder à rota estática configurada no seu app.js/server.js.
-// Assumindo que o Multer salva em 'uploads/logos/' e que o Express serve esse caminho.
-const UPLOAD_ROUTE_PREFIX = '/uploads/logos/'; 
+const API_URL = process.env.API_BASE_URL;
 
 /**
- * Gera uma URL pública e COMPLETA para um recurso (imagem, ícone, etc.).
- * @param {string} nomeArquivo - O nome do arquivo salvo no DB.
- * @param {string} pasta - O nome da subpasta (obrigatório, mas será ignorado para uploads).
- * @param {string} arquivoPadrao - O nome do arquivo padrão caso o principal não seja encontrado.
- * @returns {string} A URL completa e formatada (ex: 'http://localhost:3334/uploads/logos/logo-123.png').
+ * Gera uma URL pública e completa para um recurso (imagem, ícone, etc.).
+ * @param {string} nomeArquivo O nome do arquivo salvo no banco (ex: "123.png").
+ * @param {string} pasta A subpasta dentro de 'public/' (ex: "medicamentos").
+ * @param {string} arquivoPadrao O nome do arquivo a ser usado se o principal não for encontrado.
+ * @returns {string} A URL completa e formatada.
  */
 function gerarUrl(nomeArquivo, pasta, arquivoPadrao) {
-  // ATENÇÃO: Se o Multer salva arquivos em 'uploads/logos/', a variável 'pasta' 
-  // que vem do controller ('teste') não é o caminho físico correto para verificar.
-  // Vamos usar um caminho físico que é mais provável para logos.
+  let nomeDoArquivoFinal;
   
-  // Caminho físico onde o Multer SALVA as logos (ex: 'root/uploads/logos/nome.png')
-  const CAMINHO_FISICO_LOGO = path.join(process.cwd(), 'uploads', 'logos', nomeArquivo || arquivoPadrao);
+  // Caminho físico completo para verificar se o arquivo daquele medicamento existe.
+  const caminhoFisico = path.join(PUBLIC_ROOT_PATH, pasta, nomeArquivo || '');
 
-  let caminhoRelativo;
-
-  // 1. Verifica se a logo existe no diretório de uploads do Multer
-  if (nomeArquivo && fse.existsSync(CAMINHO_FISICO_LOGO)) {
-    // CORREÇÃO ESSENCIAL: Usa o prefixo de rota de uploads
-    caminhoRelativo = path.join(UPLOAD_ROUTE_PREFIX, nomeArquivo);
+  // Verifica se um nome de arquivo foi fornecido e se ele realmente existe no disco.
+  if (nomeArquivo && fse.existsSync(caminhoFisico)) {
+    // Se o arquivo existir, usa ele.
+    nomeDoArquivoFinal = nomeArquivo;
   } else {
-    // 2. Se a logo real não existe ou é nula, usa a logo padrão.
-    // ATENÇÃO: Vamos manter a lógica original para a logo padrão, assumindo
-    // que a logo padrão ainda está em /public/teste/.
-    caminhoRelativo = path.join('/public', pasta, arquivoPadrao);
+    // Caso contrário, usa o arquivo padrão.
+    nomeDoArquivoFinal = arquivoPadrao;
   }
+
+  // Monta o caminho relativo que será parte da URL (ex: /public/medicamentos/123.png)
+  // Usar path.join aqui garante a consistência das barras, mas a conversão abaixo é uma segurança extra.
+  let caminhoRelativo = path.join('/public', pasta, nomeDoArquivoFinal);
   
-  // Garante que o caminho relativo use barras '/'
+  // Garante que o caminho use barras normais '/' para URLs, independentemente do sistema operacional.
   const caminhoRelativoFormatado = caminhoRelativo.replace(/\\/g, '/');
 
-  // Constrói a URL completa de forma segura
+  // Constrói a URL completa de forma segura, juntando a base (com seu IP) e o caminho do arquivo.
   const urlCompleta = new URL(caminhoRelativoFormatado, API_URL);
 
   return urlCompleta.href;
 }
 
-// CORREÇÃO: Altera o nome da função exportada para corresponder ao import em farmacias.js
-module.exports = { geraUrl: gerarUrl };
+module.exports = { gerarUrl };
