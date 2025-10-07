@@ -53,7 +53,7 @@ module.exports = {
       // CORREÇÃO: Mapeia os resultados para transformar o nome da imagem em uma URL completa.
       const dados = rows.map(medicamento => ({
         ...medicamento,
-        med_imagem: geraUrl(medicamento.med_imagem, 'medicamentos', 'sem-imagem.png')
+        med_imagem: gerarUrl(medicamento.med_imagem, 'medicamentos', 'sem-imagem.png')
       }));
 
       return response.status(200).json({

@@ -1,5 +1,6 @@
 const db = require('../dataBase/connection');
 const jwt = require('jsonwebtoken');
+const { gerarUrl } = require('../utils/gerarUrl');
 
 module.exports = {
   async loginFarm(request, response) {
@@ -13,8 +14,7 @@ module.exports = {
         });
       }
 
-      // A coluna farm_senha no banco de dados deve conter a senha em texto plano
-      const sql = 'SELECT farm_id, farm_nome, farm_email, farm_senha FROM farmacia WHERE farm_email = ?;';
+      const sql = 'SELECT farm_id, farm_nome, farm_email, farm_senha, farm_logo FROM farmacia WHERE farm_email = ?;';
       const [rows] = await db.query(sql, [farm_email]);
 
       if (rows.length === 0) {
@@ -26,9 +26,6 @@ module.exports = {
 
       const farmacia = rows[0];
 
-      // ===================================================================
-      // LÓGICA SEM BCRYPT: Comparação direta e insegura da senha
-      // ===================================================================
       if (farm_senha !== farmacia.farm_senha) {
         return response.status(401).json({
           sucesso: false,
@@ -36,7 +33,8 @@ module.exports = {
         });
       }
 
-      // Se a senha estiver correta, gerar o token
+      farmacia.farm_logo_url = gerarUrl(farmacia.farm_logo, 'logos', 'default-logo.png');
+
       const payload = {
         farm_id: farmacia.farm_id,
         farm_nome: farmacia.farm_nome,
@@ -64,7 +62,7 @@ module.exports = {
     }
   },
 
-   async loginFunc(request, response) {
+  async loginFunc(request, response) {
     try {
       const { func_email, func_senha } = request.body;
 
@@ -75,7 +73,6 @@ module.exports = {
         });
       }
 
-      // A coluna func_senha no banco de dados deve conter a senha em texto plano
       const sql = 'SELECT func_id, func_nome, func_email, func_senha FROM funcionarios WHERE func_email = ?;';
       const [rows] = await db.query(sql, [func_email]);
 
@@ -88,9 +85,6 @@ module.exports = {
 
       const funcionario = rows[0];
 
-      // ===================================================================
-      // LÓGICA SEM BCRYPT: Comparação direta e insegura da senha
-      // ===================================================================
       if (func_senha !== funcionario.func_senha) {
         return response.status(401).json({
           sucesso: false,
@@ -98,7 +92,6 @@ module.exports = {
         });
       }
 
-      // Se a senha estiver correta, gerar o token
       const payload = {
         func_id: funcionario.func_id,
         func_nome: funcionario.func_nome,
