@@ -38,19 +38,28 @@ module.exports = {
       const page = parseInt(request.query.page || '1', 10);
       const limit = parseInt(request.query.limit || '10', 10);
       const offset = (page - 1) * limit;
+      
       const countSql = 'SELECT COUNT(*) as total FROM medicamento;';
       const [[{ total: totalItens }]] = await db.query(countSql);
       const totalPaginas = Math.ceil(totalItens / limit);
+
+      // ATUALIZADO: Query agora busca também a descrição e o nome do laboratório
       const dataSql = `
-        SELECT m.med_id, m.med_nome, m.med_dosagem, m.med_quantidade, m.med_imagem
+        SELECT 
+          m.med_id, m.med_nome, m.med_dosagem, m.med_quantidade, m.med_imagem,
+          m.med_descricao, -- ADICIONADO
+          l.lab_nome,
+          mp.medp_preco
         FROM medicamento m
+        LEFT JOIN laboratorios l ON m.lab_id = l.lab_id
+        LEFT JOIN medpreco mp ON m.med_id = mp.medicamento_id
+        GROUP BY m.med_id
         LIMIT ?
         OFFSET ?;
       `;
       const values = [limit, offset];
       const [rows] = await db.query(dataSql, values);
 
-      // CORREÇÃO: Mapeia os resultados para transformar o nome da imagem em uma URL completa.
       const dados = rows.map(medicamento => ({
         ...medicamento,
         med_imagem: gerarUrl(medicamento.med_imagem, 'medicamentos', 'sem-imagem.png')
@@ -70,6 +79,7 @@ module.exports = {
       return handleServerError(response, error);
     }
   },
+
 
   async listarMedicamentoPorId(request, response) {
     try {
@@ -93,6 +103,31 @@ module.exports = {
       medicamento.med_imagem = gerarUrl(medicamento.med_imagem, 'medicamentos', 'sem-imagem.png');
 
       return response.status(200).json({ sucesso: true, mensagem: 'Dados do medicamento recuperados com sucesso.', dados: medicamento });
+    } catch (error) {
+      return handleServerError(response, error);
+    }
+  },
+
+  async listarFarmaciasPorMedicamento(request, response) {
+    try {
+      const { med_id } = request.params;
+      const sql = `
+        SELECT
+          f.farm_id, f.farm_nome, f.farm_endereco,
+          mp.medp_preco as preco
+        FROM medpreco mp
+        INNER JOIN farmacia f ON mp.farmacia_id = f.farm_id
+        WHERE mp.medicamento_id = ?
+        ORDER BY mp.medp_preco ASC;
+      `;
+      const [rows] = await db.query(sql, [med_id]);
+
+      return response.status(200).json({
+        sucesso: true,
+        mensagem: 'Lista de farmácias para o medicamento, ordenada por preço.',
+        dados: rows
+      });
+
     } catch (error) {
       return handleServerError(response, error);
     }

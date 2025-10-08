@@ -35,6 +35,37 @@ module.exports = {
     }
   },
 
+  async listarUmLaboratorio(request, response) {
+    try {
+      const { lab_id } = request.params;
+      const sql = 'SELECT * FROM laboratorios WHERE lab_id = ?;';
+      const values = [lab_id];
+      const [rows] = await db.query(sql, values);
+
+      if (rows.length === 0) {
+        return response.status(404).json({
+          sucesso: false,
+          mensagem: 'Laboratório não encontrado.',
+        });
+      }
+
+      const laboratorio = rows[0];
+      // Utiliza a mesma função 'gerarUrl' para consistência
+      const dadosComUrl = {
+        ...laboratorio,
+        lab_logo: gerarUrl(laboratorio.lab_logo, 'logos', 'default-logo.png')
+      };
+
+      return response.status(200).json({
+        sucesso: true,
+        mensagem: 'Dados do laboratório.',
+        dados: dadosComUrl
+      });
+    } catch (error) {
+      return handleServerError(response, error);
+    }
+  },
+
   async listarMedicamentosLab(request, response) {
     try {
       const { lab_id } = request.query;

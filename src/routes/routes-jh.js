@@ -104,6 +104,7 @@ router.post('/laboratorios', uploadLogo.single('lab_logo'), LaboratorioControlle
 router.put('/laboratorios/:lab_id', uploadLogo.single('lab_logo'), LaboratorioController.editarLaboratorio);
 router.delete("/laboratorios/:lab_id", LaboratorioController.apagarLaboratorio);
 router.get("/laboratorios/", LaboratorioController.listarMedicamentosLab);
+router.get('/laboratorios/:lab_id', LaboratorioController.listarUmLaboratorio);
 
 // Routes para funcionários
 router.get("/funcionario", FuncionariosController.listarFuncionarios);
@@ -140,5 +141,6 @@ router.get('/favoritos/usuario/:usuario_id', FavoritosController.listarFavoritos
 // Rota de Login
 router.post("/loginfarm", LoginFarmController.loginFarm);
 router.post("/loginfunc", LoginFarmController.loginFunc);
+router.get('/medicamentos/:med_id/farmacias', MedicamentosController.listarFarmaciasPorMedicamento);
 
 module.exports = router;
