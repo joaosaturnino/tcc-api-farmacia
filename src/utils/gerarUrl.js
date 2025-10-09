@@ -1,52 +1,50 @@
 const fse = require('fs-extra');
 const path = require('path');
-const { URL } = require('url');
+const { URL } = require('url'); // Módulo nativo do Node.js para trabalhar com URLs
 
 /**
- * Caminho físico para a pasta 'public' onde as imagens estão.
+ * Caminho físico para a pasta 'public'.
  */
 const PUBLIC_ROOT_PATH = path.join(process.cwd(), 'public');
 
 /**
- * Lê a URL base da API a partir das variáveis de ambiente (.env).
- * Se a variável não for encontrada, ele usa 'localhost' como um fallback para desenvolvimento.
- * ESTA É A LINHA MAIS IMPORTANTE PARA O SEU PROBLEMA.
+ * Lê a URL base da API a partir das variáveis de ambiente.
+ * Fornece um valor padrão caso a variável não esteja definida.
  */
-const API_URL = process.env.API_BASE_URL;
+const API_URL = process.env.API_BASE_URL || 'http://localhost:3333';
 
 /**
- * Gera uma URL pública e completa para um recurso (imagem, ícone, etc.).
- * @param {string} nomeArquivo O nome do arquivo salvo no banco (ex: "123.png").
- * @param {string} pasta A subpasta dentro de 'public/' (ex: "medicamentos").
+ * Gera uma URL pública e COMPLETA para um recurso (imagem, ícone, etc.).
+ *
+ * @param {string} nomeArquivo O nome do arquivo salvo no banco (ex: "produto-123.jpg").
+ * @param {string} pasta A subpasta dentro de 'public/' (ex: "produtos").
  * @param {string} arquivoPadrao O nome do arquivo a ser usado se o principal não for encontrado.
- * @returns {string} A URL completa e formatada.
+ * @returns {string} A URL completa e formatada (ex: 'http://localhost:3333/public/produtos/produto-123.jpg').
  */
 function gerarUrl(nomeArquivo, pasta, arquivoPadrao) {
-  let nomeDoArquivoFinal;
-  
-  // Caminho físico completo para verificar se o arquivo daquele medicamento existe.
-  const caminhoFisico = path.join(PUBLIC_ROOT_PATH, pasta, nomeArquivo || '');
+  // Define qual arquivo será verificado: o nomeArquivo ou o arquivoPadrao
+  const arquivoVerificar = nomeArquivo || arquivoPadrao; 
+  // Caminho físico completo para verificar se o arquivo existe
+  const caminhoFisico = path.join(PUBLIC_ROOT_PATH, pasta, arquivoVerificar); 
 
-  // Verifica se um nome de arquivo foi fornecido e se ele realmente existe no disco.
-  if (nomeArquivo && fse.existsSync(caminhoFisico)) {
-    // Se o arquivo existir, usa ele.
-    nomeDoArquivoFinal = nomeArquivo;
+  let caminhoRelativo;
+
+  // Se um nome de arquivo foi fornecido e ele de fato existe no sistema de arquivos...
+  if (nomeArquivo && fse.existsSync(caminhoFisico)) { 
+    // ...usa o caminho para esse arquivo.
+    caminhoRelativo = path.join('/public', pasta, nomeArquivo); 
   } else {
-    // Caso contrário, usa o arquivo padrão.
-    nomeDoArquivoFinal = arquivoPadrao;
+    // ...caso contrário, usa o caminho do arquivo padrão.
+    caminhoRelativo = path.join('/public', pasta, arquivoPadrao); 
   }
-
-  // Monta o caminho relativo que será parte da URL (ex: /public/medicamentos/123.png)
-  // Usar path.join aqui garante a consistência das barras, mas a conversão abaixo é uma segurança extra.
-  let caminhoRelativo = path.join('/public', pasta, nomeDoArquivoFinal);
+  // Garante que o caminho relativo use barras normais '/' em vez de '\'
+  const caminhoRelativoFormatado = caminhoRelativo.replace(/\\/g, '/'); 
   
-  // Garante que o caminho use barras normais '/' para URLs, independentemente do sistema operacional.
-  const caminhoRelativoFormatado = caminhoRelativo.replace(/\\/g, '/');
-
-  // Constrói a URL completa de forma segura, juntando a base (com seu IP) e o caminho do arquivo.
+  // Constrói a URL completa de forma segura, evitando barras duplas (//)
   const urlCompleta = new URL(caminhoRelativoFormatado, API_URL);
-
-  return urlCompleta.href;
+  
+  return urlCompleta.href; 
 }
 
+// Exporta a função para ser usada em outros arquivos
 module.exports = { gerarUrl };

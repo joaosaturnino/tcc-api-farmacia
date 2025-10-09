@@ -33,6 +33,7 @@ module.exports = {
         });
       }
 
+      [cite_start]// Aplicação da função para criar a URL da imagem [cite: 248, 259]
       farmacia.farm_logo_url = gerarUrl(farmacia.farm_logo, 'logos', 'default-logo.png');
 
       const payload = {

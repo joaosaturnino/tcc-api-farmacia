@@ -1,7 +1,7 @@
 require("dotenv").config();
+
 const express = require("express");
 const cors = require('cors'); 
-const path = require('path');
 
 // O ideal é que o seu arquivo de rotas principal controle todas as rotas.
 // A rota get("/") foi removida daqui e deve ser colocada no seu arquivo de rotas se necessária.
@@ -23,7 +23,7 @@ const porta = process.env.PORT || 3334;
 app.listen(porta, () => {
   // CORREÇÃO: A mensagem agora exibe a variável "porta" corretamente.
   // Isso mostrará "Servidor iniciado na porta 3334" no console.
-  console.log(`Servidor iniciado na porta ${porta}`);
+  console.log(`Servidor iniciado http://localhost: ${porta}`);
 });
 
 // A ROTA ABAIXO FOI REMOVIDA

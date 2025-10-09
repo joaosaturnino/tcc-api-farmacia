@@ -133,6 +133,93 @@ module.exports = {
     }
   },
 
+  async listarTodosMedicamentosBusca(request, response) {
+    try {
+      const page = parseInt(request.query.page || '1', 10);
+      const limit = parseInt(request.query.limit || '10', 10);
+      const search = request.query.search || '';
+      const offset = (page - 1) * limit;
+      const searchTerm = `%${search}%`;
+      
+      // Query para contar o total de OFERTAS (não mais medicamentos únicos)
+      let countSql = `
+        SELECT COUNT(*) as total
+        FROM medpreco mp
+        INNER JOIN medicamento m ON mp.medicamento_id = m.med_id
+        LEFT JOIN laboratorios l ON m.lab_id = l.lab_id
+        LEFT JOIN tipo_produto t ON m.tipo_id = t.tipo_id
+      `;
+
+      // Query principal para buscar os dados das ofertas, incluindo o nome da farmácia
+      let dataSql = `
+        SELECT 
+          m.med_id, m.med_nome, m.med_descricao, m.med_imagem, m.med_ativo,
+          l.lab_nome,
+          t.nome_tipo as categoria,
+          mp.medp_preco,
+          f.farm_nome,
+          mp.medp_id as oferta_id 
+        FROM medpreco mp
+        INNER JOIN medicamento m ON mp.medicamento_id = m.med_id
+        INNER JOIN farmacia f ON mp.farmacia_id = f.farm_id
+        LEFT JOIN laboratorios l ON m.lab_id = l.lab_id
+        LEFT JOIN tipo_produto t ON m.tipo_id = t.tipo_id
+      `;
+      
+      let queryParams = [];
+
+      if (search) {
+        const whereClause = ' WHERE m.med_nome LIKE ? OR l.lab_nome LIKE ? OR t.nome_tipo LIKE ?';
+        countSql += whereClause;
+        dataSql += whereClause;
+        queryParams.push(searchTerm, searchTerm, searchTerm);
+      }
+      
+      const [[{ total: totalItens }]] = await db.query(countSql, queryParams);
+      const totalPaginas = Math.ceil(totalItens / limit);
+
+      // Ordena pelo preço da oferta (do menor para o maior)
+      dataSql += ` 
+        ORDER BY mp.medp_preco ASC, m.med_nome ASC 
+        LIMIT ? 
+        OFFSET ?;
+      `;
+      queryParams.push(limit, offset);
+
+      const [rows] = await db.query(dataSql, queryParams);
+
+      // Mapeia os dados, incluindo o novo campo 'farmaciaNome'
+      const dados = rows.map(oferta => ({
+        id: oferta.oferta_id, // Usa o ID da oferta como chave única
+        nome: oferta.med_nome,
+        laboratorio: oferta.lab_nome,
+        descricao: oferta.med_descricao || 'Descrição não disponível.',
+        preco: parseFloat(oferta.medp_preco || 0),
+        imagem: gerarUrl(oferta.med_imagem, 'medicamentos', 'sem-imagem.png'),
+        categoria: oferta.categoria || 'Geral',
+        necessitaReceita: false,
+        emEstoque: Boolean(oferta.med_ativo),
+        farmaciaNome: oferta.farm_nome // NOVO CAMPO
+      }));
+
+      return response.status(200).json({
+        sucesso: true,
+        mensagem: `Ofertas recuperadas com sucesso.`,
+        dados: dados,
+        paginacao: {
+          paginaAtual: page,
+          totalItens: totalItens,
+          totalPaginas: totalPaginas,
+        },
+      });
+    } catch (error) {
+      return handleServerError(response, error);
+    }
+  },
+
+
+
+
   async cadastrarMedicamentos(request, response) {
     let connection; 
     try {

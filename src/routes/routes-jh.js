@@ -142,5 +142,6 @@ router.get('/favoritos/usuario/:usuario_id', FavoritosController.listarFavoritos
 router.post("/loginfarm", LoginFarmController.loginFarm);
 router.post("/loginfunc", LoginFarmController.loginFunc);
 router.get('/medicamentos/:med_id/farmacias', MedicamentosController.listarFarmaciasPorMedicamento);
+router.get('/paginado', MedicamentosController.listarTodosMedicamentosBusca);
 
 module.exports = router;
