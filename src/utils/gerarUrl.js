@@ -11,7 +11,7 @@ const PUBLIC_ROOT_PATH = path.join(process.cwd(), 'public');
  * Lê a URL base da API a partir das variáveis de ambiente.
  * Fornece um valor padrão caso a variável não esteja definida.
  */
-const API_URL = process.env.API_BASE_URL || 'http://localhost:3333';
+const API_URL = process.env.API_BASE_URL || 'http://localhost:3334';
 
 /**
  * Gera uma URL pública e COMPLETA para um recurso (imagem, ícone, etc.).

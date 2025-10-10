@@ -4,6 +4,27 @@ const { gerarUrl } = require('../utils/gerarUrl');
 module.exports = {
   async listarFarmacias(request, response) {
     try {
+
+      const { qtde } = request.query;
+      if (qtde) {
+        const sqlQtde = `SELECT farm_id, farm_nome, farm_cnpj, farm_endereco, farm_telefone, 
+                        farm_email,  farm_logo, farm_cidade_id FROM farmacia ORDER BY RAND() LIMIT ?;`;
+        const [rowsQtde] = await db.query(sqlQtde, [parseInt(qtde)]); 
+        const farmaciasComUrlQtde = rowsQtde.map(farmacia => ({
+          ...farmacia,
+          // CORREÇÃO: A pasta 'teste' foi substituída por 'logos' para consistência.
+          farm_logo_url: gerarUrl(farmacia.farm_logo, 'logos', 'default-logo.png')
+        }));
+        return response.status(200).json({
+          sucesso: true,
+          mensagem: `Lista de farmácias (limitada a ${qtde})`,
+          itens: rowsQtde.length,
+          dados: farmaciasComUrlQtde
+        });
+      }
+
+
+
       const sql = `SELECT farm_id, farm_nome, farm_cnpj, farm_endereco, farm_telefone, 
                   farm_email,  farm_logo, farm_cidade_id FROM farmacia;`;
       const [rows] = await db.query(sql);
