@@ -1,5 +1,4 @@
 const db = require('../dataBase/connection');
-// CORREÇÃO: Importar a função para gerar a URL completa da imagem.
 const { gerarUrl } = require('../utils/gerarUrl');
 
 const handleServerError = (response, error) => {
@@ -21,7 +20,6 @@ module.exports = {
       const values = [farmacia_id];
       const [rows] = await db.query(sql, values);
 
-      // CORREÇÃO: Mapeia os resultados para transformar o nome da imagem em uma URL completa.
       const dados = rows.map(medicamento => ({
         ...medicamento,
         med_imagem: gerarUrl(medicamento.med_imagem, 'medicamentos', 'sem-imagem.png')
@@ -33,44 +31,83 @@ module.exports = {
     }
   },
 
+  // ===================================================================================
+  // FUNÇÃO CORRIGIDA PARA LIDAR COM BUSCA, FILTROS, ORDENAÇÃO E PAGINAÇÃO
+  // ===================================================================================
   async listarTodosMedicamentosPaginado(request, response) {
     try {
-      const page = parseInt(request.query.page || '1', 10);
-      const limit = parseInt(request.query.limit || '10', 10);
-      const offset = (page - 1) * limit;
+      const { page = 1, limit = 12, search = '', lab = '', sort = '' } = request.query;
+      const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
       
-      const countSql = 'SELECT COUNT(*) as total FROM medicamento;';
-      const [[{ total: totalItens }]] = await db.query(countSql);
+      let queryParams = [];
+      const whereClauses = [];
+
+      // WHERE aprimorado para buscar em mais campos
+      if (search) {
+        whereClauses.push(`(m.med_nome LIKE ? OR l.lab_nome LIKE ? OR f.farm_nome LIKE ?)`);
+        const searchTerm = `%${search}%`;
+        queryParams.push(searchTerm, searchTerm, searchTerm);
+      }
+      if (lab) {
+        whereClauses.push(`m.lab_id = ?`);
+        queryParams.push(parseInt(lab, 10));
+      }
+
+      const whereStatement = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+      // Contagem baseada em OFERTAS (medpreco), não em medicamentos únicos
+      const countSql = `
+        SELECT COUNT(*) as total 
+        FROM medpreco mp
+        INNER JOIN medicamento m ON mp.medicamento_id = m.med_id
+        INNER JOIN farmacia f ON mp.farmacia_id = f.farm_id
+        LEFT JOIN laboratorios l ON m.lab_id = l.lab_id
+        ${whereStatement};
+      `;
+      const [[{ total: totalItens }]] = await db.query(countSql, queryParams);
       const totalPaginas = Math.ceil(totalItens / limit);
 
-      // ATUALIZADO: Query agora busca também a descrição e o nome do laboratório
+      let orderByStatement = 'ORDER BY m.med_nome ASC';
+      if (sort === 'preco_asc') {
+        orderByStatement = 'ORDER BY mp.medp_preco ASC';
+      } else if (sort === 'preco_desc') {
+        orderByStatement = 'ORDER BY mp.medp_preco DESC';
+      }
+
+      // Query principal baseada em OFERTAS, sem agrupar os resultados
       const dataSql = `
         SELECT 
-          m.med_id, m.med_nome, m.med_dosagem, m.med_quantidade, m.med_imagem,
-          m.med_descricao, -- ADICIONADO
+          m.med_id, m.med_nome, m.med_dosagem, m.med_imagem,
+          m.med_descricao,
           l.lab_nome,
-          mp.medp_preco
-        FROM medicamento m
+          f.farm_nome,
+          mp.medp_preco,
+          mp.medp_id
+        FROM medpreco mp
+        INNER JOIN medicamento m ON mp.medicamento_id = m.med_id
+        INNER JOIN farmacia f ON mp.farmacia_id = f.farm_id
         LEFT JOIN laboratorios l ON m.lab_id = l.lab_id
-        LEFT JOIN medpreco mp ON m.med_id = mp.medicamento_id
-        GROUP BY m.med_id
+        ${whereStatement}
+        ${orderByStatement}
         LIMIT ?
         OFFSET ?;
       `;
-      const values = [limit, offset];
-      const [rows] = await db.query(dataSql, values);
+      
+      const finalQueryParams = [...queryParams, parseInt(limit, 10), offset];
+      const [rows] = await db.query(dataSql, finalQueryParams);
 
       const dados = rows.map(medicamento => ({
         ...medicamento,
+        medp_preco: parseFloat(medicamento.medp_preco || 0),
         med_imagem: gerarUrl(medicamento.med_imagem, 'medicamentos', 'sem-imagem.png')
       }));
 
       return response.status(200).json({
         sucesso: true,
-        mensagem: `Página ${page} de medicamentos recuperada com sucesso.`,
+        mensagem: `Ofertas recuperadas com sucesso.`,
         dados: dados,
         paginacao: {
-          paginaAtual: page,
+          paginaAtual: parseInt(page, 10),
           totalItens: totalItens,
           totalPaginas: totalPaginas,
         },
@@ -79,7 +116,9 @@ module.exports = {
       return handleServerError(response, error);
     }
   },
-
+  // ===================================================================================
+  // FIM DA FUNÇÃO CORRIGIDA
+  // ===================================================================================
 
   async listarMedicamentoPorId(request, response) {
     try {
@@ -98,7 +137,6 @@ module.exports = {
         return response.status(404).json({ sucesso: false, mensagem: 'Medicamento não encontrado ou não pertence a esta farmácia.' });
       }
       
-      // CORREÇÃO: Transforma o nome da imagem em uma URL completa para o objeto único.
       const medicamento = rows[0];
       medicamento.med_imagem = gerarUrl(medicamento.med_imagem, 'medicamentos', 'sem-imagem.png');
 
@@ -132,7 +170,6 @@ module.exports = {
       return handleServerError(response, error);
     }
   },
-
   async listarTodosMedicamentosBusca(request, response) {
     try {
       const page = parseInt(request.query.page || '1', 10);
@@ -141,7 +178,6 @@ module.exports = {
       const offset = (page - 1) * limit;
       const searchTerm = `%${search}%`;
       
-      // Query para contar o total de OFERTAS (não mais medicamentos únicos)
       let countSql = `
         SELECT COUNT(*) as total
         FROM medpreco mp
@@ -150,7 +186,6 @@ module.exports = {
         LEFT JOIN tipo_produto t ON m.tipo_id = t.tipo_id
       `;
 
-      // Query principal para buscar os dados das ofertas, incluindo o nome da farmácia
       let dataSql = `
         SELECT 
           m.med_id, m.med_nome, m.med_descricao, m.med_imagem, m.med_ativo,
@@ -178,7 +213,6 @@ module.exports = {
       const [[{ total: totalItens }]] = await db.query(countSql, queryParams);
       const totalPaginas = Math.ceil(totalItens / limit);
 
-      // Ordena pelo preço da oferta (do menor para o maior)
       dataSql += ` 
         ORDER BY mp.medp_preco ASC, m.med_nome ASC 
         LIMIT ? 
@@ -188,9 +222,8 @@ module.exports = {
 
       const [rows] = await db.query(dataSql, queryParams);
 
-      // Mapeia os dados, incluindo o novo campo 'farmaciaNome'
       const dados = rows.map(oferta => ({
-        id: oferta.oferta_id, // Usa o ID da oferta como chave única
+        id: oferta.oferta_id,
         nome: oferta.med_nome,
         laboratorio: oferta.lab_nome,
         descricao: oferta.med_descricao || 'Descrição não disponível.',
@@ -199,7 +232,7 @@ module.exports = {
         categoria: oferta.categoria || 'Geral',
         necessitaReceita: false,
         emEstoque: Boolean(oferta.med_ativo),
-        farmaciaNome: oferta.farm_nome // NOVO CAMPO
+        farmaciaNome: oferta.farm_nome
       }));
 
       return response.status(200).json({
@@ -217,16 +250,10 @@ module.exports = {
     }
   },
 
-
-
-
   async cadastrarMedicamentos(request, response) {
     let connection; 
     try {
       const { med_nome, med_dosagem, med_quantidade, med_cod_barras, forma_id, med_descricao, lab_id, tipo_id, farmacia_id, med_preco } = request.body;
-      
-      // CORREÇÃO: Salvar apenas o 'filename' em vez do 'path' completo.
-      // Isso desacopla a estrutura de pastas do servidor dos dados no banco.
       const med_imagem = request.file ? request.file.filename : null;
 
       if (!med_nome || !med_dosagem || !med_quantidade || !med_cod_barras || !tipo_id || !forma_id || !lab_id || !farmacia_id || med_preco === undefined) {
@@ -281,8 +308,6 @@ module.exports = {
         }
         
         const { med_nome, med_dosagem, med_quantidade, forma_id, med_descricao, lab_id, tipo_id, med_ativo, farmacia_id, medp_preco } = body;
-        
-        // CORREÇÃO: Salvar apenas o 'filename' da nova imagem.
         const nova_imagem_nome = request.file ? request.file.filename : null;
 
         if (!farmacia_id || !med_nome || !med_dosagem || medp_preco === undefined) { 
