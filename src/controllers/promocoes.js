@@ -23,10 +23,14 @@ module.exports = {
 
   async cadastrarPromocoes(request, response) {
     try {
-      const { farm_id, med_id, promo_desconto, promo_inicio, promo_fim } = request.body;
-      const sql = `INSERT INTO promocao (farm_id, med_id, promo_desconto, promo_inicio, promo_fim) 
+      // CORREÇÃO: Ajustado de 'farm_id' e 'med_id' para corresponder ao schema do BD.
+      const { farmacia_id, medicamento_id, promo_desconto, promo_inicio, promo_fim } = request.body;
+      
+      // CORREÇÃO: Nomes das colunas ajustados no comando SQL.
+      const sql = `INSERT INTO promocao (farmacia_id, medicamento_id, promo_desconto, promo_inicio, promo_fim) 
                   VALUES (?, ?, ?, ?, ?);`;
-      const values = [farm_id, med_id, promo_desconto, promo_inicio, promo_fim];
+      const values = [farmacia_id, medicamento_id, promo_desconto, promo_inicio, promo_fim];
+      
       const [rows] = await db.query(sql, values);
       return response.status(200).json({
         sucesso: true,
@@ -44,11 +48,15 @@ module.exports = {
 
   async editarPromocoes(request, response) {
     try {
-      const { farm_id, med_id, promo_desconto, promo_inicio, promo_fim } = request.body;
+      // CORREÇÃO: Ajustado de 'farm_id' e 'med_id' para corresponder ao schema do BD.
+      const { farmacia_id, medicamento_id, promo_desconto, promo_inicio, promo_fim } = request.body;
       const { promo_id } = request.params;
-      const sql = `UPDATE promocao SET farm_id = ?, med_id = ?, promo_desconto = ?, 
+
+      // CORREÇÃO: Nomes das colunas ajustados no comando SQL.
+      const sql = `UPDATE promocao SET farmacia_id = ?, medicamento_id = ?, promo_desconto = ?, 
                   promo_inicio = ?, promo_fim = ? WHERE promo_id = ?;`;
-      const values = [farm_id, med_id, promo_desconto, promo_inicio, promo_fim, promo_id];
+      const values = [farmacia_id, medicamento_id, promo_desconto, promo_inicio, promo_fim, promo_id];
+      
       const [rows] = await db.query(sql, values);
       return response.status(200).json({
         sucesso: true,

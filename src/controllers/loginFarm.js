@@ -33,7 +33,6 @@ module.exports = {
         });
       }
 
-      // Aplicação da função para criar a URL da imagem [cite: 248, 259]
       farmacia.farm_logo_url = gerarUrl(farmacia.farm_logo, 'logos', 'default-logo.png');
 
       const payload = {
@@ -73,8 +72,9 @@ module.exports = {
           mensagem: 'E-mail e senha são obrigatórios.',
         });
       }
-
-      const sql = 'SELECT func_id, func_nome, func_email, func_senha FROM funcionarios WHERE func_email = ?;';
+      
+      // CORREÇÃO: Nome da tabela alterado de 'funcionarios' para 'funcionario' (singular).
+      const sql = 'SELECT func_id, func_nome, func_email, func_senha FROM funcionario WHERE func_email = ?;';
       const [rows] = await db.query(sql, [func_email]);
 
       if (rows.length === 0) {

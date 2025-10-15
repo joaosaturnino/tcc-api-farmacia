@@ -1,10 +1,14 @@
 const db = require('../dataBase/connection');
+const { gerarUrl } = require('../utils/gerarUrl');
 
 module.exports = {
   async listarMedPreco(request, response) {
     try {
+      // CORRIGIDO: Removida a coluna 'medp_imagem' da consulta, pois não existe na tabela.
       const sql = 'SELECT medp_id, medicamento_id, farmacia_id, medp_preco FROM medpreco;';
       const [rows] = await db.query(sql);
+
+      // CORRIGIDO: Removida a lógica de gerar URL de imagem.
       return response.status(200).json({
         sucesso: true,
         mensagem: 'Lista de preços de medicamentos',
@@ -22,6 +26,7 @@ module.exports = {
 
   async cadastrarMedPreco(request, response) {
     try {
+      // A imagem é tratada no controller de medicamentos. Este endpoint cadastra apenas o preço.
       const { medicamento_id, farmacia_id, medp_preco } = request.body;
       const sql = 'INSERT INTO medpreco (farmacia_id, medicamento_id, medp_preco) VALUES (?, ?, ?);';
       const values = [farmacia_id, medicamento_id, medp_preco];
@@ -29,7 +34,7 @@ module.exports = {
       return response.status(200).json({
         sucesso: true,
         mensagem: 'Preço cadastrado com sucesso.',
-        dados: { medpreco_id: rows.insertId }
+        dados: { medp_id: rows.insertId }
       });
     } catch (error) {
       return response.status(500).json({
@@ -42,10 +47,11 @@ module.exports = {
 
   async editarMedPreco(request, response) {
     try {
-      const { medicamento_id, farmacia_id, medp_preco } = request.body;
+      // Este endpoint edita apenas o preço.
+      const { medp_preco } = request.body;
       const { medp_id } = request.params;
-      const sql = 'UPDATE medpreco SET farmacia_id = ?, medicamento_id = ?, medp_preco = ? WHERE medp_id = ?;';
-      const values = [farmacia_id, medicamento_id, medp_preco, medp_id];
+      const sql = 'UPDATE medpreco SET medp_preco = ? WHERE medp_id = ?;';
+      const values = [medp_preco, medp_id];
       const [rows] = await db.query(sql, values);
       return response.status(200).json({
         sucesso: true,
@@ -63,9 +69,9 @@ module.exports = {
 
   async apagarMedPreco(request, response) {
     try {
-      const { medpreco_id } = request.params;
-      const sql = 'DELETE FROM medpreco WHERE medpreco_id = ?;';
-      const values = [medpreco_id];
+      const { medp_id } = request.params;
+      const sql = 'DELETE FROM medpreco WHERE medp_id = ?;';
+      const values = [medp_id];
       const [rows] = await db.query(sql, values);
       return response.status(200).json({
         sucesso: true,

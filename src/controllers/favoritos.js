@@ -44,10 +44,6 @@ module.exports = {
         return response.status(400).json({ sucesso: false, mensagem: 'O ID da farmácia é obrigatório.' });
       }
 
-      // CORREÇÃO CRÍTICA: A consulta foi ajustada para agrupar os medicamentos corretamente.
-      // 1. Removido `med.med_data_atualizacao` do `GROUP BY` para que cada medicamento seja contado apenas uma vez.
-      // 2. Usado `MAX(med.med_data_atualizacao)` para obter a data de atualização mais recente do medicamento,
-      //    que é o que o relatório no front-end espera para o filtro de período.
       const sql = `
         SELECT 
           med.med_id, med.med_nome, med.med_dosagem, lab.lab_nome AS fabricante_nome,
@@ -75,7 +71,7 @@ module.exports = {
   },
 
   /**
-   * Lista os itens favoritados por um usuário específico.
+   * CORRIGIDO: Lista os itens favoritados por um usuário, buscando a imagem na tabela `medpreco`.
    */
   async listarFavoritosPorUsuario(request, response) {
     try {
@@ -83,22 +79,32 @@ module.exports = {
       if (!usuario_id) {
         return response.status(400).json({ sucesso: false, mensagem: 'O ID do usuário é obrigatório.' });
       }
+      
+      // CORREÇÃO: A consulta agora junta a tabela `medpreco` para obter a imagem específica da farmácia.
       const sql = `
         SELECT 
-          fav.fav_id, med.med_id, med.med_nome, med.med_dosagem, med.med_imagem,
-          lab.lab_nome AS fabricante_nome, fav.farmacia_id 
+          fav.fav_id, 
+          med.med_id, 
+          med.med_nome, 
+          med.med_dosagem, 
+          mp.medp_imagem, -- <-- Coluna de imagem corrigida
+          lab.lab_nome AS fabricante_nome, 
+          fav.farmacia_id 
         FROM favoritos fav
         INNER JOIN medicamento med ON fav.medicamento_id = med.med_id
-        INNER JOIN laboratorios lab ON med.lab_id = lab.lab_id
+        LEFT JOIN laboratorios lab ON med.lab_id = lab.lab_id
+        LEFT JOIN medpreco mp ON fav.medicamento_id = mp.medicamento_id AND fav.farmacia_id = mp.farmacia_id
         WHERE fav.usuario_id = ?
         ORDER BY med.med_nome ASC;
       `;
       const [rows] = await db.query(sql, [usuario_id]);
+      
       // Gera a URL completa para a imagem de cada medicamento favoritado.
       const dadosComUrl = rows.map(item => ({
         ...item,
-        med_imagem_url: gerarUrl(item.med_imagem, 'medicamentos', 'sem-imagem.png') // CORREÇÃO: Usando chave `med_imagem_url` para consistência
+        med_imagem_url: gerarUrl(item.medp_imagem, 'medicamentos', 'sem-imagem.png') // <-- Campo de imagem corrigido
       }));
+      
       return response.status(200).json({
         sucesso: true,
         mensagem: `Lista de medicamentos favoritados para o usuário ${usuario_id}`,
@@ -144,7 +150,6 @@ module.exports = {
       const { fav_id } = request.params;
       const { farmacia_id } = request.body; // A farmácia logada deve ser a dona do favorito
       
-      // Validação para garantir que a farmácia está tentando apagar um favorito que lhe pertence.
       if (!farmacia_id) {
         return response.status(400).json({ sucesso: false, mensagem: 'O ID da farmácia é obrigatório para autorizar a exclusão.' });
       }
@@ -156,7 +161,6 @@ module.exports = {
       const values = [fav_id, farmacia_id];
       const [result] = await db.query(sql, values);
 
-      // Se nenhuma linha foi afetada, o favorito não existe ou não pertence à farmácia.
       if (result.affectedRows === 0) {
         return response.status(404).json({
           sucesso: false,

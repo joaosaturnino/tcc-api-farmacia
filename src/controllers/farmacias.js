@@ -31,7 +31,6 @@ module.exports = {
       
       const farmaciasComUrl = rows.map(farmacia => ({
         ...farmacia,
-        // CORREÇÃO: A pasta 'teste' foi substituída por 'logos' para consistência.
         farm_logo_url: gerarUrl(farmacia.farm_logo, 'logos', 'default-logo.png')
       }));
       
@@ -67,7 +66,6 @@ module.exports = {
       const farmacia = rows[0];
       const farmaciaComUrl = {
         ...farmacia,
-        // CORREÇÃO: A pasta 'teste' foi substituída por 'logos'.
         farm_logo_url: gerarUrl(farmacia.farm_logo, 'logos', 'default-logo.png')
       };
       
@@ -85,31 +83,33 @@ module.exports = {
     }
   },
 
+  /**
+   * CORRIGIDO: Lista os medicamentos associados a uma farmácia através da tabela `medpreco`.
+   */
   async listarMedicamentosPorFarmacia(request, response) {
     try {
       const { farm_id } = request.params;
 
-      // ATENÇÃO: A query abaixo é um exemplo.
-      // Adapte os nomes da tabela (ex: 'medicamentos') e das colunas (ex: 'med_nome')
-      // para que correspondam à estrutura do seu banco de dados.
+      // CORREÇÃO: A consulta foi reescrita para juntar as tabelas `medicamento` e `medpreco`
+      // e buscar os dados corretos (preço e imagem) da farmácia específica.
       const sql = `
         SELECT 
-          med_id as id, 
-          med_nome as nome, 
-          med_marca as marca, 
-          med_categoria as categoria, 
-          med_preco as preco, 
-          med_imagem as imagem
-        FROM medicamentos 
-        WHERE med_farm_id = ?;`;
+          med.med_id as id, 
+          med.med_nome as nome,
+          med.med_dosagem as dosagem,
+          lab.lab_nome as laboratorio,
+          mp.medp_preco as preco, 
+          mp.medp_imagem as imagem
+        FROM medpreco mp
+        INNER JOIN medicamento med ON mp.medicamento_id = med.med_id
+        LEFT JOIN laboratorios lab ON med.lab_id = lab.lab_id
+        WHERE mp.farmacia_id = ?;`;
 
       const [rows] = await db.query(sql, [farm_id]);
 
-      // Gera a URL completa para a imagem de cada medicamento
       const medicamentosComUrl = rows.map(medicamento => ({
         ...medicamento,
-        // Assumindo que as imagens dos medicamentos estão na pasta 'medicamentos'
-        imagem_url: gerarUrl(medicamento.imagem, 'medicamentos', 'default-remedio.png') 
+        imagem_url: gerarUrl(medicamento.imagem, 'medicamentos', 'sem-imagem.png') 
       }));
 
       return response.status(200).json({
@@ -125,7 +125,7 @@ module.exports = {
         dados: error.message
       });
     }
-},
+  },
 
   async cadastrarFarmacias(request, response) {
     try {
@@ -149,7 +149,6 @@ module.exports = {
       const values = [farm_nome, farm_cnpj, farm_endereco, farm_telefone, farm_email, farm_senha, nomeArquivo, farm_cidade_id];
       
       const [rows] = await db.query(sql, values);
-      // CORREÇÃO: A pasta 'teste' foi substituída por 'logos'.
       const farmaciaUrl = gerarUrl(nomeArquivo, 'logos', 'default-logo.png');
       
       return response.status(201).json({
@@ -219,7 +218,6 @@ module.exports = {
           }
       }
       
-      // CORREÇÃO: A pasta 'teste' foi substituída por 'logos'.
       const farmaciaUrl = gerarUrl(nomeLogoFinal, 'logos', 'default-logo.png');
       
       return response.status(200).json({
@@ -239,7 +237,6 @@ module.exports = {
     }
   },
   
-  // As funções abaixo (verificarEmail, redefinirSenhaPorEmail, apagarFarmacias) não manipulam imagens e foram mantidas como estavam.
   async verificarEmail(request, response) {
     try {
       const { farm_email } = request.body;
