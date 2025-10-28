@@ -21,6 +21,7 @@ const ListarUnicoController = require("../controllers/listagem");
 const ListarParametroController = require("../controllers/parametros");
 const ListarInnerController = require("../controllers/innerjoin");
 const LoginFarmController = require("../controllers/loginFarm");
+const CategoriaController = require('../controllers/categoria');
 
 // ==================================================================
 // CONFIGURAÇÃO DO UPLOAD DE ARQUIVOS
@@ -68,6 +69,7 @@ router.post("/medicamentos", uploadMedicamento.single('med_imagem'), Medicamento
 router.get("/medicamentos/:med_id", MedicamentosController.listarMedicamentoPorId);
 router.put("/medicamentos/:med_id", uploadMedicamento.single('med_imagem'), MedicamentosController.editarMedicamentos); 
 router.delete("/medicamentos/:med_id", MedicamentosController.apagarMedicamentos);
+router.get('/medicamentos/tipo/:tipo_id', CategoriaController.listarCategoria);
 
 // Routes para precos medicamentos
 router.get("/medpreco", MedPrecoController.listarMedPreco);
@@ -143,5 +145,7 @@ router.post("/loginfarm", LoginFarmController.loginFarm);
 router.post("/loginfunc", LoginFarmController.loginFunc);
 router.get('/medicamentos/:med_id/farmacias', MedicamentosController.listarFarmaciasPorMedicamento);
 router.get('/paginado', MedicamentosController.listarTodosMedicamentosBusca);
+
+// router.get('/medicamentos/tipo/:tipo_id', CategoriaController.listarCategoria);
 
 module.exports = router;
