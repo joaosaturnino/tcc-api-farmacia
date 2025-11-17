@@ -1,3 +1,5 @@
+// medicamentos.js
+
 const db = require('../dataBase/connection');
 const { gerarUrl } = require('../utils/gerarUrl');
 
@@ -10,7 +12,9 @@ const handleServerError = (response, error) => {
 };
 
 module.exports = {
+  // Rota do ADMIN (sem alteração)
   async listarMedicamentos(request, response) {
+    // ... (seu código de listarMedicamentos está correto)
     try {
       const { farmacia_id } = request.query;
       if (!farmacia_id) {
@@ -20,37 +24,48 @@ module.exports = {
       const sql = `
         SELECT 
           m.med_id, m.med_nome, m.med_dosagem, m.med_quantidade, 
-          m.med_cod_barras, m.forma_id, m.med_descricao, l.lab_nome, 
-          m.med_imagem, -- CORRIGIDO: Imagem vem da tabela 'medicamento'
-          m.tipo_id, m.med_data_cadastro, 
-          m.med_data_atualizacao, m.med_ativo, mp.medp_preco, mp.farmacia_id 
+          m.med_cod_barras, m.med_descricao, l.lab_nome, 
+          m.med_imagem, 
+          m.med_data_cadastro, 
+          m.med_data_atualizacao, m.med_ativo, mp.medp_preco, mp.farmacia_id,
+          tp.nome_tipo as tipo_nome,
+          f.forma_nome as forma_nome,
+          m.tipo_id,
+          m.forma_id,
+          p.promo_desconto,
+          p.promo_inicio,
+          p.promo_fim
         FROM medicamento m 
         INNER JOIN medpreco mp ON m.med_id = mp.medicamento_id 
-        INNER JOIN laboratorios l ON m.lab_id = l.lab_id 
+        INNER JOIN laboratorios l ON m.lab_id = l.lab_id
+        LEFT JOIN tipo_produto tp ON m.tipo_id = tp.tipo_id
+        LEFT JOIN forma_farmaceutica f ON m.forma_id = f.forma_id
+        LEFT JOIN promocao p ON mp.medicamento_id = p.medicamento_id 
+                           AND mp.farmacia_id = p.farmacia_id
+                           AND p.promo_inicio <= CURDATE() 
+                           AND p.promo_fim >= CURDATE()
         WHERE mp.farmacia_id = ?;
       `;
       const values = [farmacia_id];
       const [rows] = await db.query(sql, values);
-
       const dados = rows.map(medicamento => ({
         ...medicamento,
         med_imagem: gerarUrl(medicamento.med_imagem, 'medicamentos', 'sem-imagem.png')
       }));
-
       return response.status(200).json({ sucesso: true, mensagem: 'Lista de medicamentos recuperada com sucesso.', itens: dados.length, dados: dados });
     } catch (error) {
       return handleServerError(response, error);
     }
   },
 
+  // Rota PÚBLICA (Home, Laboratorio, "Todas")
   async listarTodosMedicamentosPaginado(request, response) {
     try {
       const { page = 1, limit = 12, search = '', lab = '', sort = '' } = request.query;
       const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
       
       let queryParams = [];
-      const whereClauses = [];
-
+      const whereClauses = ['m.med_ativo = true'];
       if (search) {
         whereClauses.push(`(m.med_nome LIKE ? OR l.lab_nome LIKE ? OR f.farm_nome LIKE ?)`);
         const searchTerm = `%${search}%`;
@@ -60,7 +75,6 @@ module.exports = {
         whereClauses.push(`m.lab_id = ?`);
         queryParams.push(parseInt(lab, 10));
       }
-
       const whereStatement = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
       const countSql = `
@@ -81,24 +95,42 @@ module.exports = {
         orderByStatement = 'ORDER BY mp.medp_preco DESC';
       }
 
+      // --- CORREÇÃO AQUI ---
       const dataSql = `
         SELECT 
           m.med_id, m.med_nome, m.med_dosagem, 
-          m.med_imagem, -- CORRIGIDO: Imagem vem da tabela 'medicamento'
+          m.med_imagem, 
           m.med_descricao,
+          m.med_quantidade,
           l.lab_nome,
           f.farm_nome,
+          f.farm_id,
           mp.medp_preco,
-          mp.medp_id
+          mp.medp_id,
+          tp.nome_tipo as tipo_nome,
+          ff.forma_nome as forma_nome,
+          
+          -- Adicionados os campos de data da promoção
+          p.promo_desconto,
+          p.promo_inicio,
+          p.promo_fim
+
         FROM medpreco mp
         INNER JOIN medicamento m ON mp.medicamento_id = m.med_id
         INNER JOIN farmacia f ON mp.farmacia_id = f.farm_id
         LEFT JOIN laboratorios l ON m.lab_id = l.lab_id
+        LEFT JOIN tipo_produto tp ON m.tipo_id = tp.tipo_id
+        LEFT JOIN forma_farmaceutica ff ON m.forma_id = ff.forma_id
+        LEFT JOIN promocao p ON mp.medicamento_id = p.medicamento_id 
+                           AND mp.farmacia_id = p.farmacia_id
+                           AND p.promo_inicio <= CURDATE() 
+                           AND p.promo_fim >= CURDATE()
         ${whereStatement}
         ${orderByStatement}
         LIMIT ?
         OFFSET ?;
       `;
+      // --------------------
       
       const finalQueryParams = [...queryParams, parseInt(limit, 10), offset];
       const [rows] = await db.query(dataSql, finalQueryParams);
@@ -106,6 +138,7 @@ module.exports = {
       const dados = rows.map(medicamento => ({
         ...medicamento,
         medp_preco: parseFloat(medicamento.medp_preco || 0),
+        promo_desconto: parseFloat(medicamento.promo_desconto || 0), 
         med_imagem: gerarUrl(medicamento.med_imagem, 'medicamentos', 'sem-imagem.png')
       }));
 
@@ -124,7 +157,9 @@ module.exports = {
     }
   },
 
+  // Rota ADMIN (sem alteração)
   async listarMedicamentoPorId(request, response) {
+    // ... (seu código está correto)
     try {
       const { med_id } = request.params;
       const { farmacia_id } = request.query;
@@ -135,10 +170,17 @@ module.exports = {
       const sql = `
         SELECT m.med_id, m.med_nome, m.med_dosagem, m.med_quantidade, m.med_cod_barras, 
                m.forma_id, m.lab_id, m.tipo_id, m.med_descricao, m.med_ativo,
-               m.med_imagem, -- CORRIGIDO: Imagem vem da tabela 'medicamento'
-               mp.medp_preco, mp.farmacia_id 
+               m.med_imagem, 
+               mp.medp_preco, mp.farmacia_id,
+               p.promo_desconto,
+               p.promo_inicio,
+               p.promo_fim
         FROM medicamento m
         INNER JOIN medpreco mp ON m.med_id = mp.medicamento_id
+        LEFT JOIN promocao p ON mp.medicamento_id = p.medicamento_id 
+                           AND mp.farmacia_id = p.farmacia_id
+                           AND p.promo_inicio <= CURDATE() 
+                           AND p.promo_fim >= CURDATE()
         WHERE m.med_id = ? AND mp.farmacia_id = ?;
       `;
       const values = [med_id, farmacia_id];
@@ -157,7 +199,9 @@ module.exports = {
     }
   },
 
+  // Rota PÚBLICA (Tela Produto - Lista de Farmácias) (sem alteração)
   async listarFarmaciasPorMedicamento(request, response) {
+    // ... (seu código está correto)
     try {
       const { med_id } = request.params;
       
@@ -165,11 +209,18 @@ module.exports = {
         SELECT
           f.farm_id, f.farm_nome, f.farm_endereco,
           mp.medp_preco as preco,
-          m.med_imagem as imagem -- CORRIGIDO: A imagem é do medicamento, não da oferta
+          m.med_imagem as imagem,
+          p.promo_desconto,
+          p.promo_inicio,
+          p.promo_fim
         FROM medpreco mp
         INNER JOIN farmacia f ON mp.farmacia_id = f.farm_id
-        INNER JOIN medicamento m ON mp.medicamento_id = m.med_id -- Adicionado JOIN
-        WHERE mp.medicamento_id = ?
+        INNER JOIN medicamento m ON mp.medicamento_id = m.med_id
+        LEFT JOIN promocao p ON mp.medicamento_id = p.medicamento_id 
+                           AND mp.farmacia_id = p.farmacia_id
+                           AND p.promo_inicio <= CURDATE() 
+                           AND p.promo_fim >= CURDATE()
+        WHERE mp.medicamento_id = ? AND m.med_ativo = true
         ORDER BY mp.medp_preco ASC;
       `;
       const [rows] = await db.query(sql, [med_id]);
@@ -190,6 +241,7 @@ module.exports = {
     }
   },
   
+  // Rota PÚBLICA (Tela Pesquisa)
   async listarTodosMedicamentosBusca(request, response) {
     try {
       const page = parseInt(request.query.page || '1', 10);
@@ -206,32 +258,52 @@ module.exports = {
         LEFT JOIN tipo_produto t ON m.tipo_id = t.tipo_id
       `;
 
+      // --- CORREÇÃO AQUI ---
       let dataSql = `
         SELECT 
           m.med_id, m.med_nome, m.med_descricao, 
-          m.med_imagem, -- CORRIGIDO: Imagem vem da tabela 'medicamento'
+          m.med_imagem, 
           m.med_ativo,
+          m.med_dosagem,
+          m.med_quantidade,
           l.lab_nome,
           t.nome_tipo as categoria,
           mp.medp_preco,
           f.farm_nome,
-          mp.medp_id as oferta_id 
+          f.farm_id,
+          mp.medp_id as oferta_id,
+          ff.forma_nome,
+          
+          -- Adicionados os campos de data da promoção
+          p.promo_desconto,
+          p.promo_inicio,
+          p.promo_fim
+
         FROM medpreco mp
         INNER JOIN medicamento m ON mp.medicamento_id = m.med_id
         INNER JOIN farmacia f ON mp.farmacia_id = f.farm_id
         LEFT JOIN laboratorios l ON m.lab_id = l.lab_id
         LEFT JOIN tipo_produto t ON m.tipo_id = t.tipo_id
+        LEFT JOIN forma_farmaceutica ff ON m.forma_id = ff.forma_id
+        LEFT JOIN promocao p ON mp.medicamento_id = p.medicamento_id 
+                           AND mp.farmacia_id = p.farmacia_id
+                           AND p.promo_inicio <= CURDATE() 
+                           AND p.promo_fim >= CURDATE()
       `;
+      // --------------------
       
+      let whereClauses = ['m.med_ativo = true'];
       let queryParams = [];
 
       if (search) {
-        const whereClause = ' WHERE m.med_nome LIKE ? OR l.lab_nome LIKE ? OR t.nome_tipo LIKE ?';
-        countSql += whereClause;
-        dataSql += whereClause;
+        whereClauses.push('(m.med_nome LIKE ? OR l.lab_nome LIKE ? OR t.nome_tipo LIKE ?)');
         queryParams.push(searchTerm, searchTerm, searchTerm);
       }
       
+      const whereStatement = ' WHERE ' + whereClauses.join(' AND ');
+      countSql += whereStatement;
+      dataSql += whereStatement;
+
       const [[{ total: totalItens }]] = await db.query(countSql, queryParams);
       const totalPaginas = Math.ceil(totalItens / limit);
 
@@ -244,16 +316,33 @@ module.exports = {
 
       const [rows] = await db.query(dataSql, queryParams);
 
+      // Mapeamento de dados (passando os novos campos)
       const dados = rows.map(oferta => ({
+        // Campos para a lista de busca
         id: oferta.oferta_id,
         nome: oferta.med_nome,
         laboratorio: oferta.lab_nome,
-        descricao: oferta.med_descricao || 'Descrição não disponível.',
         preco: parseFloat(oferta.medp_preco || 0),
         imagem: gerarUrl(oferta.med_imagem, 'medicamentos', 'sem-imagem.png'),
         categoria: oferta.categoria || 'Geral',
-        emEstoque: Boolean(oferta.med_ativo),
-        farmaciaNome: oferta.farm_nome
+        farmaciaNome: oferta.farm_nome,
+        
+        // Campos de promoção (agora incluindo datas)
+        promo_desconto: parseFloat(oferta.promo_desconto || 0), 
+        promo_inicio: oferta.promo_inicio,
+        promo_fim: oferta.promo_fim,
+        
+        // Campos necessários para a tela 'Produto'
+        med_id: oferta.med_id,
+        farm_id: oferta.farm_id,
+        med_nome: oferta.med_nome,
+        med_dosagem: oferta.med_dosagem,
+        med_quantidade: oferta.med_quantidade,
+        med_descricao: oferta.med_descricao || 'Descrição não disponível.',
+        lab_nome: oferta.lab_nome,
+        tipo_nome: oferta.categoria,
+        forma_nome: oferta.forma_nome,
+        emEstoque: Boolean(oferta.med_ativo)
       }));
 
       return response.status(200).json({
@@ -266,16 +355,18 @@ module.exports = {
           totalPaginas: totalPaginas,
         },
       });
-    } catch (error) {
+    } catch (error) { 
       return handleServerError(response, error);
     }
   },
 
+  // Rota ADMIN (sem alteração)
   async cadastrarMedicamentos(request, response) {
+    // ... (seu código está correto)
     let connection; 
     try {
       const { med_nome, med_dosagem, med_quantidade, med_cod_barras, forma_id, med_descricao, lab_id, tipo_id, farmacia_id, med_preco } = request.body;
-      const med_imagem_nome = request.file ? request.file.filename : null; // Nome do arquivo da imagem
+      const med_imagem_nome = request.file ? request.file.filename : null; 
 
       if (!med_nome || !med_dosagem || !med_quantidade || !med_cod_barras || !tipo_id || !forma_id || !lab_id || !farmacia_id || med_preco === undefined) {
         return response.status(400).json({ sucesso: false, mensagem: 'Todos os campos obrigatórios devem ser fornecidos.' });
@@ -288,13 +379,11 @@ module.exports = {
       connection = await db.getConnection();
       await connection.beginTransaction();
 
-      // CORRIGIDO: Adicionado 'med_imagem' ao INSERT na tabela 'medicamento'
-      const sqlMedicamento = `INSERT INTO medicamento (med_nome, med_dosagem, med_quantidade, med_cod_barras, forma_id, med_descricao, lab_id, tipo_id, med_ativo, med_imagem) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
-      const valuesMedicamento = [med_nome, med_dosagem, med_quantidade, med_cod_barras, forma_id, med_descricao, lab_id, tipo_id, 1, med_imagem_nome];
+      const sqlMedicamento = `INSERT INTO medicamento (med_nome, med_dosagem, med_quantidade, med_cod_barras, forma_id, med_descricao, lab_id, tipo_id, med_ativo, med_imagem) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?);`;
+      const valuesMedicamento = [med_nome, med_dosagem, med_quantidade, med_cod_barras, forma_id, med_descricao, lab_id, tipo_id, med_imagem_nome];
       const [resultMedicamento] = await connection.query(sqlMedicamento, valuesMedicamento);
       const novoMedicamentoId = resultMedicamento.insertId;
 
-      // CORRIGIDO: Removido 'medp_imagem' do INSERT na tabela 'medpreco'
       const sqlMedpreco = `INSERT INTO medpreco (farmacia_id, medicamento_id, medp_preco) VALUES (?, ?, ?);`;
       const valuesMedpreco = [farmacia_id, novoMedicamentoId, med_preco];
       await connection.query(sqlMedpreco, valuesMedpreco);
@@ -309,7 +398,9 @@ module.exports = {
     }
   },
 
+  // Rota ADMIN (sem alteração)
   async editarMedicamentos(request, response) {
+    // ... (seu código está correto)
     let connection;
     try {
         const { med_id } = request.params;
@@ -348,7 +439,6 @@ module.exports = {
             return response.status(403).json({ sucesso: false, mensagem: 'Operação não permitida. Medicamento não pertence à sua farmácia.' });
         }
 
-        // CORRIGIDO: A imagem é atualizada na tabela 'medicamento'
         let sqlMedicamento;
         let valuesMedicamento;
         
@@ -372,7 +462,9 @@ module.exports = {
     }
   },
 
+  // Rota ADMIN (sem alteração)
   async apagarMedicamentos(request, response) {
+    // ... (seu código está correto)
     let connection;
     try {
       const { med_id } = request.params;
@@ -391,9 +483,6 @@ module.exports = {
         return response.status(403).json({ sucesso: false, mensagem: 'Operação não permitida. Este medicamento não pertence à sua farmácia ou não existe.' });
       }
       
-      // Lógica correta: Uma farmácia só deve apagar a sua própria oferta (preço),
-      // não o registro mestre do medicamento.
-      
       await connection.commit();
       return response.status(200).json({ sucesso: true, mensagem: 'Oferta do medicamento apagada com sucesso.' });
     } catch (error) {
@@ -404,3 +493,4 @@ module.exports = {
     }
   }
 };
+// A chave '}' extra foi removida

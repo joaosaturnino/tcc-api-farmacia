@@ -1,21 +1,33 @@
 const db = require('../dataBase/connection');
+const { gerarUrl } = require('../utils/gerarUrl');
 
 module.exports = {
   async listarCategoria(request, response) {
     try {
-      // Pega o 'tipo_id' dos parâmetros da rota (ex: /medicamentos/tipo/1)
       const { tipo_id } = request.params;
 
+      // --- CORREÇÃO: Query SQL Atualizada ---
+      // Adicionamos o JOIN com a tabela 'promocao'
       const sql = `
         SELECT
+          m.med_id,
           m.med_nome,
           m.med_dosagem,
           m.med_quantidade,
           m.med_descricao,
+          m.med_imagem,
           l.lab_nome,
           f.farm_nome,
+          f.farm_id,
           mp.medp_preco,
-          tp.nome_tipo
+          tp.nome_tipo,
+          frm.forma_nome,
+
+          -- CAMPOS DE PROMOÇÃO ADICIONADOS --
+          p.promo_desconto,
+          p.promo_inicio,
+          p.promo_fim
+          
         FROM
           medicamento AS m
         INNER JOIN
@@ -26,16 +38,27 @@ module.exports = {
           tipo_produto AS tp ON m.tipo_id = tp.tipo_id
         INNER JOIN
           laboratorios AS l ON m.lab_id = l.lab_id
+        LEFT JOIN
+          forma_farmaceutica AS frm ON m.forma_id = frm.forma_id
+          
+        -- JOIN DE PROMOÇÃO ADICIONADO --
+        LEFT JOIN 
+          promocao p ON mp.medicamento_id = p.medicamento_id 
+                   AND mp.farmacia_id = p.farmacia_id
+                   AND p.promo_inicio <= CURDATE() 
+                   AND p.promo_fim >= CURDATE()
+                   
         WHERE
-          tp.tipo_id = ?;
+          tp.tipo_id = ?
+          AND m.med_ativo = true;
       `;
+      // ----------------------------------------
       
       const values = [tipo_id];
       const [rows] = await db.query(sql, values);
 
-      // Verifica se encontrou resultados
       if (rows.length === 0) {
-        return response.status(404).json({
+        return response.status(200).json({
           sucesso: true,
           mensagem: 'Nenhum medicamento encontrado para este tipo.',
           itens: 0,
@@ -43,11 +66,16 @@ module.exports = {
         });
       }
 
+      const dadosComUrl = rows.map(item => ({
+        ...item,
+        med_imagem: gerarUrl(item.med_imagem, 'medicamentos', 'sem-imagem.png')
+      }));
+
       return response.status(200).json({
         sucesso: true,
         mensagem: `Lista de medicamentos para o tipo ID: ${tipo_id}`,
-        itens: rows.length,
-        dados: rows
+        itens: dadosComUrl.length,
+        dados: dadosComUrl
       });
 
     } catch (error) {

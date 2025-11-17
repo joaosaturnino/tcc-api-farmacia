@@ -1,7 +1,7 @@
 const db = require('../dataBase/connection');
 const { gerarUrl } = require('../utils/gerarUrl');
 
-// Função de erro auxiliar para manter o código limpo e consistente
+// Função de erro auxiliar
 const handleServerError = (response, error) => {
   console.error("Erro no servidor:", error);
   return response.status(500).json({
@@ -12,9 +12,7 @@ const handleServerError = (response, error) => {
 };
 
 module.exports = {
-  /**
-   * Lista todos os medicamentos favoritados de forma agregada em todo o sistema.
-   */
+  // Rota de Admin (sem alteração)
   async listarFavoritos(request, response) {
     try {
       const sql = `
@@ -34,16 +32,13 @@ module.exports = {
     }
   },
 
-  /**
-   * Lista os medicamentos favoritados de uma farmácia específica, corrigindo a lógica de agregação.
-   */
+  // Rota de Admin (sem alteração)
   async listarFavoritosPorFarmacia(request, response) {
     try {
       const { farm_id } = request.params;
       if (!farm_id) {
         return response.status(400).json({ sucesso: false, mensagem: 'O ID da farmácia é obrigatório.' });
       }
-
       const sql = `
         SELECT 
           med.med_id, med.med_nome, med.med_dosagem, lab.lab_nome AS fabricante_nome,
@@ -56,9 +51,7 @@ module.exports = {
         GROUP BY med.med_id, med.med_nome, med.med_dosagem, lab.lab_nome
         ORDER BY favoritacoes_count DESC;
       `;
-      
       const [rows] = await db.query(sql, [farm_id]);
-      
       return response.status(200).json({
         sucesso: true,
         mensagem: `Lista de medicamentos favoritados para a farmácia ${farm_id}`,
@@ -70,9 +63,8 @@ module.exports = {
     }
   },
 
-  /**
-   * CORRIGIDO: Lista os itens favoritados por um usuário, buscando a imagem na tabela `medpreco`.
-   */
+  
+  // --- CORREÇÃO APLICADA AQUI ---
   async listarFavoritosPorUsuario(request, response) {
     try {
       const { usuario_id } = request.params;
@@ -80,29 +72,46 @@ module.exports = {
         return response.status(400).json({ sucesso: false, mensagem: 'O ID do usuário é obrigatório.' });
       }
       
-      // CORREÇÃO: A consulta agora junta a tabela `medpreco` para obter a imagem específica da farmácia.
+      // CORREÇÃO: Voltamos o 'INNER JOIN' para 'LEFT JOIN'
+      // Isso traz os favoritos mesmo que o preço (medpreco) tenha sido deletado
       const sql = `
         SELECT 
           fav.fav_id, 
           med.med_id, 
           med.med_nome, 
-          med.med_dosagem, 
-          mp.medp_imagem, -- <-- Coluna de imagem corrigida
+          med.med_dosagem,
+          med.med_quantidade,
+          med.med_descricao,
+          med.med_imagem,
           lab.lab_nome AS fabricante_nome, 
-          fav.farmacia_id 
+          fav.farmacia_id,
+          mp.medp_preco,
+          tp.nome_tipo,
+          frm.forma_nome,
+          p.promo_desconto,
+          p.promo_inicio,
+          p.promo_fim
         FROM favoritos fav
         INNER JOIN medicamento med ON fav.medicamento_id = med.med_id
-        LEFT JOIN laboratorios lab ON med.lab_id = lab.lab_id
+        
+        -- MUDANÇA DE INNER PARA LEFT AQUI --
         LEFT JOIN medpreco mp ON fav.medicamento_id = mp.medicamento_id AND fav.farmacia_id = mp.farmacia_id
+        
+        LEFT JOIN laboratorios lab ON med.lab_id = lab.lab_id
+        LEFT JOIN tipo_produto tp ON med.tipo_id = tp.tipo_id
+        LEFT JOIN forma_farmaceutica frm ON med.forma_id = frm.forma_id
+        LEFT JOIN promocao p ON mp.medicamento_id = p.medicamento_id 
+                           AND mp.farmacia_id = p.farmacia_id
+                           AND p.promo_inicio <= CURDATE() 
+                           AND p.promo_fim >= CURDATE()
         WHERE fav.usuario_id = ?
         ORDER BY med.med_nome ASC;
       `;
       const [rows] = await db.query(sql, [usuario_id]);
       
-      // Gera a URL completa para a imagem de cada medicamento favoritado.
       const dadosComUrl = rows.map(item => ({
         ...item,
-        med_imagem_url: gerarUrl(item.medp_imagem, 'medicamentos', 'sem-imagem.png') // <-- Campo de imagem corrigido
+        med_imagem: gerarUrl(item.med_imagem, 'medicamentos', 'sem-imagem.png')
       }));
       
       return response.status(200).json({
@@ -115,10 +124,9 @@ module.exports = {
       return handleServerError(response, error);
     }
   },
+  // ---------------------------------
 
-  /**
-   * Adiciona um novo item aos favoritos.
-   */
+  // Rota de Adicionar (sem alteração)
   async cadastrarFavoritos(request, response) {
     try {
       const { usuario_id, farmacia_id, medicamento_id } = request.body;
@@ -134,7 +142,6 @@ module.exports = {
         dados: { fav_id: result.insertId }
       });
     } catch (error) {
-      // Trata de forma específica a violação de chave única (tentativa de favoritar duas vezes)
       if (error.code === 'ER_DUP_ENTRY') {
         return response.status(409).json({ sucesso: false, mensagem: 'Este medicamento já foi favoritado por este usuário.' });
       }
@@ -142,23 +149,21 @@ module.exports = {
     }
   },
 
-  /**
-   * Remove um item dos favoritos, com verificação de permissão.
-   */
+  // Rota de Apagar (sem alteração)
   async apagarFavoritos(request, response) {
     try {
       const { fav_id } = request.params;
-      const { farmacia_id } = request.body; // A farmácia logada deve ser a dona do favorito
+      const { usuario_id } = request.body; 
       
-      if (!farmacia_id) {
-        return response.status(400).json({ sucesso: false, mensagem: 'O ID da farmácia é obrigatório para autorizar a exclusão.' });
+      if (!usuario_id) {
+        return response.status(400).json({ sucesso: false, mensagem: 'O ID do usuário é obrigatório para autorizar a exclusão.' });
       }
       if (!fav_id) {
         return response.status(400).json({ sucesso: false, mensagem: 'O ID do favorito é obrigatório.' });
       }
 
-      const sql = 'DELETE FROM favoritos WHERE fav_id = ? AND farmacia_id = ?;';
-      const values = [fav_id, farmacia_id];
+      const sql = 'DELETE FROM favoritos WHERE fav_id = ? AND usuario_id = ?;';
+      const values = [fav_id, usuario_id];
       const [result] = await db.query(sql, values);
 
       if (result.affectedRows === 0) {

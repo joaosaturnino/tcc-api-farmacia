@@ -1,6 +1,7 @@
 const db = require('../dataBase/connection');
 const jwt = require('jsonwebtoken');
 const { gerarUrl } = require('../utils/gerarUrl');
+const bcrypt = require('bcrypt');
 
 module.exports = {
   async loginFarm(request, response) {
@@ -26,7 +27,8 @@ module.exports = {
 
       const farmacia = rows[0];
 
-      if (farm_senha !== farmacia.farm_senha) {
+      const match = await bcrypt.compare(farm_senha, farmacia.farm_senha);
+      if (!match) {
         return response.status(401).json({
           sucesso: false,
           mensagem: 'Credenciais inválidas. Verifique o e-mail e a senha.',
@@ -86,7 +88,8 @@ module.exports = {
 
       const funcionario = rows[0];
 
-      if (func_senha !== funcionario.func_senha) {
+      const matchFunc = await bcrypt.compare(func_senha, funcionario.func_senha);
+      if (!matchFunc) {
         return response.status(401).json({
           sucesso: false,
           mensagem: 'Credenciais inválidas. Verifique o e-mail e a senha.',

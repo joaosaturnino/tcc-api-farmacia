@@ -1,5 +1,6 @@
 const db = require('../dataBase/connection');
 const { gerarUrl } = require('../utils/gerarUrl');
+const bcrypt = require('bcrypt');
 
 module.exports = {
   async listarFarmacias(request, response) {
@@ -143,10 +144,13 @@ module.exports = {
         nomeArquivo = request.file.filename;
       }
 
+      // Hash da senha antes de salvar
+      const hashedSenha = await bcrypt.hash(farm_senha, 10);
+
       const sql = `INSERT INTO farmacia (farm_nome, farm_cnpj, farm_endereco, farm_telefone, 
-                  farm_email, farm_senha, farm_logo, farm_cidade_id) 
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?);`;
-      const values = [farm_nome, farm_cnpj, farm_endereco, farm_telefone, farm_email, farm_senha, nomeArquivo, farm_cidade_id];
+          farm_email, farm_senha, farm_logo, farm_cidade_id) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?);`;
+      const values = [farm_nome, farm_cnpj, farm_endereco, farm_telefone, farm_email, hashedSenha, nomeArquivo, farm_cidade_id];
       
       const [rows] = await db.query(sql, values);
       const farmaciaUrl = gerarUrl(nomeArquivo, 'logos', 'default-logo.png');
@@ -186,12 +190,19 @@ module.exports = {
       const values = [];
       let novoNomeArquivo = null;
 
-      Object.entries(camposRecebidos).forEach(([key, value]) => {
+      // Se a senha for passada, faz hash antes de adicionar aos valores
+      for (const [key, value] of Object.entries(camposRecebidos)) {
         if (value !== null && value !== undefined) {
-          camposParaAtualizar.push(`${key} = ?`);
-          values.push(value);
+          if (key === 'farm_senha' && value && value.trim() !== '') {
+            const hashed = await bcrypt.hash(value, 10);
+            camposParaAtualizar.push(`${key} = ?`);
+            values.push(hashed);
+          } else {
+            camposParaAtualizar.push(`${key} = ?`);
+            values.push(value);
+          }
         }
-      });
+      }
 
       if (request.file) {
         novoNomeArquivo = request.file.filename;
@@ -267,8 +278,9 @@ module.exports = {
       if (nova_senha.length < 6) {
         return response.status(400).json({ sucesso: false, mensagem: 'A senha deve ter no mínimo 6 caracteres.' });
       }
+      const hashed = await bcrypt.hash(nova_senha, 10);
       const sql = 'UPDATE farmacia SET farm_senha = ? WHERE farm_email = ?;';
-      const [result] = await db.query(sql, [nova_senha, farm_email]);
+      const [result] = await db.query(sql, [hashed, farm_email]);
       if (result.affectedRows === 0) {
         return response.status(404).json({ sucesso: false, mensagem: 'E-mail não encontrado para atualização.' });
       }
@@ -279,6 +291,40 @@ module.exports = {
         mensagem: 'Erro no servidor.',
         dados: error.message
       });
+    }
+  },
+
+  async alterarSenha(request, response) {
+    try {
+      const { farm_id } = request.params;
+      const { senha_atual, nova_senha } = request.body;
+
+      if (!senha_atual || !nova_senha) {
+        return response.status(400).json({ sucesso: false, mensagem: 'Senha atual e nova senha são obrigatórias.' });
+      }
+
+      if (nova_senha.length < 6) {
+        return response.status(400).json({ sucesso: false, mensagem: 'A senha deve ter no mínimo 6 caracteres.' });
+      }
+
+      const [rows] = await db.query('SELECT farm_senha FROM farmacia WHERE farm_id = ?;', [farm_id]);
+      if (rows.length === 0) {
+        return response.status(404).json({ sucesso: false, mensagem: 'Farmácia não encontrada.' });
+      }
+
+      const atualHash = rows[0].farm_senha;
+      const match = await bcrypt.compare(senha_atual, atualHash);
+      if (!match) {
+        return response.status(401).json({ sucesso: false, mensagem: 'Senha atual incorreta.' });
+      }
+
+      const novaHash = await bcrypt.hash(nova_senha, 10);
+      const sql = 'UPDATE farmacia SET farm_senha = ? WHERE farm_id = ?;';
+      await db.query(sql, [novaHash, farm_id]);
+
+      return response.status(200).json({ sucesso: true, mensagem: 'Senha alterada com sucesso.' });
+    } catch (error) {
+      return response.status(500).json({ sucesso: false, mensagem: 'Erro no servidor.', dados: error.message });
     }
   },
 

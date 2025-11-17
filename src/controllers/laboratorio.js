@@ -50,6 +50,27 @@ module.exports = {
     }
   },
 
+  async listarLaboratorioTodos(request, response) {
+    try {
+      const sql = 'SELECT lab_id, lab_nome, lab_cnpj, lab_endereco, lab_telefone, lab_email, lab_logo, lab_data_cadastro, lab_data_atualizacao, lab_ativo FROM laboratorios;';
+      const [rows] = await db.query(sql);
+
+      const dadosComUrl = rows.map(laboratorio => ({
+        ...laboratorio,
+        lab_logo_url: gerarUrl(laboratorio.lab_logo, 'logos', 'default-logo.png')
+      }));
+
+      return response.status(200).json({
+        sucesso: true,
+        mensagem: 'Lista de laboratórios',
+        itens: dadosComUrl.length,
+        dados: dadosComUrl
+      });
+    } catch (error) {
+      return handleServerError(response, error);
+    }
+  },
+
   async listarUmLaboratorio(request, response) {
     try {
       const { lab_id } = request.params;

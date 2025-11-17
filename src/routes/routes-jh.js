@@ -58,6 +58,7 @@ router.get('/farmacias/:farm_id', FarmaciasController.listarFarmaciaPorId);
 router.post("/farmacias", uploadLogo.single('farm_logo'), FarmaciasController.cadastrarFarmacias);
 router.put("/farmacias/:farm_id", uploadLogo.single('farm_logo'), FarmaciasController.editarFarmacias); 
 router.delete("/farmacias/:farm_id", FarmaciasController.apagarFarmacias);
+router.put('/farmacias/:farm_id/senha', FarmaciasController.alterarSenha);
 router.post("/farmacias/verificar-email", FarmaciasController.verificarEmail);
 router.post("/farmacias/redefinir-senha-por-email", FarmaciasController.redefinirSenhaPorEmail);
 router.get('/farmacias/:farm_id/medicamentos', FarmaciasController.listarMedicamentosPorFarmacia);
@@ -79,7 +80,8 @@ router.delete("/medpreco/:medpreco_id", MedPrecoController.apagarMedPreco);
 router.get("/medpreco/:medpreco_id", ListarUnicoController.listarUnicoMedPreco);
 
 // Routes para promoções
-router.get("/promocoes", PromocoesController.listarPromocoes);
+// === CORREÇÃO: Apontado para 'listarPromocoesPorFarmacia' que existe no controller ===
+router.get("/promocoes", PromocoesController.listarPromocoesPorFarmacia);
 router.post("/promocoes", PromocoesController.cadastrarPromocoes);
 router.patch("/promocoes/:promo_id", PromocoesController.editarPromocoes);
 router.delete("/promocoes/:promo_id", PromocoesController.apagarPromocoes);
@@ -105,8 +107,10 @@ router.get("/laboratorios", LaboratorioController.listarLaboratorio);
 router.post('/laboratorios', uploadLogo.single('lab_logo'), LaboratorioController.cadastrarLaboratorio);
 router.put('/laboratorios/:lab_id', uploadLogo.single('lab_logo'), LaboratorioController.editarLaboratorio);
 router.delete("/laboratorios/:lab_id", LaboratorioController.apagarLaboratorio);
-router.get("/laboratorios/", LaboratorioController.listarMedicamentosLab);
+// === CORREÇÃO: Rota com trailing slash removida (era duplicada de /laboratorios ou mal definida) ===
+// router.get("/laboratorios/", LaboratorioController.listarMedicamentosLab); 
 router.get('/laboratorios/:lab_id', LaboratorioController.listarUmLaboratorio);
+router.get("/todoslab", LaboratorioController.listarLaboratorioTodos);
 
 // Routes para funcionários
 router.get("/funcionario", FuncionariosController.listarFuncionarios);
@@ -138,7 +142,8 @@ router.delete("/favoritos/:fav_id", FavoritosController.apagarFavoritos);
 //router.get("/favoritos/:fav_id", FavoritosController.listarFavoritosComLaboratorio);
 router.get('/favoritos/:farm_id/favoritos', FavoritosController.listarFavoritosPorFarmacia);
 router.get('/favoritos/usuario/:usuario_id', FavoritosController.listarFavoritosPorUsuario);
-router.get('/favoritos/usuario/:usuario_id', FavoritosController.listarFavoritosPorUsuario);
+// === CORREÇÃO: Rota duplicada removida ===
+// router.get('/favoritos/usuario/:usuario_id', FavoritosController.listarFavoritosPorUsuario); 
 
 // Rota de Login
 router.post("/loginfarm", LoginFarmController.loginFarm);
@@ -146,6 +151,7 @@ router.post("/loginfunc", LoginFarmController.loginFunc);
 router.get('/medicamentos/:med_id/farmacias', MedicamentosController.listarFarmaciasPorMedicamento);
 router.get('/paginado', MedicamentosController.listarTodosMedicamentosBusca);
 
+// === CORREÇÃO: Comentário duplicado e desnecessário removido ===
 // router.get('/medicamentos/tipo/:tipo_id', CategoriaController.listarCategoria);
 
 module.exports = router;
