@@ -20,35 +20,43 @@ module.exports = {
     }
   },
 
-  async listarUsuarioPorId(request, response) {
+ async listarUsuarioPorId(request, response) {
     try {
-      const { usu_id } = request.params;
-      const sql = 'SELECT usu_id, usu_nome, usu_email, usu_cpf FROM usuarios WHERE usu_id = ?;';
-      const values = [usu_id];
-      const [rows] = await db.query(sql, values);
+        const { usu_id } = request.params;
+        
+        console.log("------------------------------------------------");
+        console.log(`📢 RECEBI PEDIDO PARA BUSCAR ID: ${usu_id}`);
 
-      if (rows.length === 0) {
-        return response.status(404).json({
-          sucesso: false,
-          mensagem: 'Usuário não encontrado.',
+        const sql = 'SELECT usu_id, usu_nome, usu_email, usu_cpf FROM usuarios WHERE usu_id = ?;';
+        const values = [usu_id];
+        const [rows] = await db.query(sql, values);
+
+        console.log("🔍 O BANCO DEVOLVEU:", rows); 
+
+        if (rows.length === 0) {
+            console.log("❌ NENHUM USUÁRIO ENCONTRADO COM ESSE ID.");
+            return response.status(404).json({
+                sucesso: false,
+                mensagem: 'Usuário não encontrado.',
+            });
+        }
+
+        console.log("✅ ENVIANDO DADOS PARA O CELULAR...");
+        return response.status(200).json({
+            sucesso: true,
+            mensagem: 'Usuário encontrado.',
+            dados: rows[0] 
         });
-      }
-
-      return response.status(200).json({
-        sucesso: true,
-        mensagem: 'Usuário encontrado.',
-        dados: rows[0]
-      });
 
     } catch (error) {
-      return response.status(500).json({
-        sucesso: false,
-        mensagem: 'Erro na requisição.',
-        dados: error.message
-      });
+        console.error("🔥 ERRO CRÍTICO NO CONTROLLER:", error);
+        return response.status(500).json({
+            sucesso: false,
+            mensagem: 'Erro na requisição.',
+            dados: error.message
+        });
     }
   },
-
 
   async loginUsuario(request, response) {
     try {
@@ -74,7 +82,6 @@ module.exports = {
 
       const usuario = rows[0];
 
-      // LÓGICA DE SENHA REVERTIDA PARA TEXTO PLANO
       if (usu_senha !== usuario.usu_senha) {
         return response.status(401).json({
           sucesso: false,
@@ -103,7 +110,6 @@ module.exports = {
     try {
       const { usu_nome, usu_email, usu_senha, usu_cpf } = request.body;
 
-      // LÓGICA DE SENHA REVERTIDA PARA TEXTO PLANO
       const sql = 'INSERT INTO usuarios (usu_nome, usu_email, usu_senha, usu_cpf) VALUES (?, ?, ?, ?);';
       const values = [usu_nome, usu_email, usu_senha, usu_cpf];
       
@@ -124,14 +130,9 @@ module.exports = {
 
   async editarUsuario(request, response) {
     try {
-      const { usu_nome, usu_email } = request.body;
       const { usu_id } = request.params;
+      const { usu_nome, usu_email, usu_cpf } = request.body; 
 
-      // --- DEPURAÇÃO: Vamos ver se os dados estão a chegar corretamente ---
-      console.log(`--- Tentando editar usuário ID: ${usu_id} ---`);
-      console.log("Dados recebidos no body:", { usu_nome, usu_email });
-
-      // Verificação de segurança básica
       if (!usu_nome || !usu_email) {
         return response.status(400).json({
           sucesso: false,
@@ -139,25 +140,22 @@ module.exports = {
         });
       }
       
-      const sql = 'UPDATE usuarios SET usu_nome = ?, usu_email = ? WHERE usu_id = ?;';
-      const values = [usu_nome, usu_email, usu_id];
+      const sql = 'UPDATE usuarios SET usu_nome = ?, usu_email = ?, usu_cpf = ? WHERE usu_id = ?;';
+      const values = [usu_nome, usu_email, usu_cpf, usu_id];
+      
       const [rows] = await db.query(sql, values);
       
-      // --- DEPURAÇÃO: Ver o que o banco de dados retornou ---
-      console.log("Resultado da query de UPDATE:", rows);
-
-      // CORREÇÃO: Verifique se alguma linha foi de facto afetada
       if (rows.affectedRows > 0) {
-        // Sucesso real!
         return response.status(200).json({
           sucesso: true,
-          mensagem: 'Utilizador editado com sucesso.',
+          mensagem: 'Usuário editado com sucesso.',
         });
       } else {
-        // O comando executou, mas nenhum utilizador com esse ID foi encontrado
+        // NOTA: Se os dados forem iguais aos que já estão no banco, affectedRows será 0.
+        // Aqui tratamos como "Usuário não encontrado" ou "Nada mudou", mas para o App está ok.
         return response.status(404).json({
           sucesso: false,
-          mensagem: 'Utilizador não encontrado para alteração.'
+          mensagem: 'Nenhum dado foi alterado ou usuário não encontrado.'
         });
       }
       
@@ -166,6 +164,44 @@ module.exports = {
       return response.status(500).json({
         sucesso: false,
         mensagem: 'Erro na requisição.',
+        dados: error.message
+      });
+    }
+  },
+
+  async redefinirSenha(request, response) {
+    try {
+      const { email, novaSenha } = request.body;
+
+      if (!email || !novaSenha) {
+        return response.status(400).json({
+          sucesso: false,
+          mensagem: 'E-mail e nova senha são obrigatórios.'
+        });
+      }
+
+      const sql = 'UPDATE usuarios SET usu_senha = ? WHERE usu_email = ?;';
+      const values = [novaSenha, email];
+      
+      const [rows] = await db.query(sql, values);
+
+      if (rows.affectedRows > 0) {
+        return response.status(200).json({
+          sucesso: true,
+          mensagem: 'Senha redefinida com sucesso!'
+        });
+      } else {
+        return response.status(404).json({
+          sucesso: false,
+          mensagem: 'E-mail não encontrado.'
+        });
+      }
+
+    } catch (error) {
+      console.error("ERRO ao redefinir senha:", error);
+      return response.status(500).json({
+        sucesso: false,
+        mensagem: 'Erro ao redefinir senha.',
         dados: error.message
       });
     }

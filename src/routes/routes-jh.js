@@ -1,10 +1,12 @@
 const express = require("express");
 const router = express.Router();
 
-// CORREÇÃO: Importar o helper de upload centralizado em vez de configurar o multer aqui.
+// Importação do Helper de Upload
 const uploadImage = require("../middleware/uploadHelper");
 
-// Importando todos os controllers
+// ==================================================================
+// IMPORTAÇÃO DOS CONTROLLERS
+// ==================================================================
 const CidadesController = require("../controllers/cidades");
 const FarmaciasController = require("../controllers/farmacias");
 const FavoritosController = require("../controllers/favoritos");
@@ -19,22 +21,14 @@ const LaboratorioController = require("../controllers/laboratorio");
 const FuncionariosController = require("../controllers/funcionarios");
 const ListarUnicoController = require("../controllers/listagem");
 const ListarParametroController = require("../controllers/parametros");
-const ListarInnerController = require("../controllers/innerjoin");
 const LoginFarmController = require("../controllers/loginFarm");
 const CategoriaController = require('../controllers/categoria');
 
 // ==================================================================
 // CONFIGURAÇÃO DO UPLOAD DE ARQUIVOS
 // ==================================================================
-
-// CORREÇÃO: As configurações duplicadas do multer foram removidas.
-// Agora, criamos instâncias de middleware de upload de forma dinâmica,
-// chamando a função do helper com a pasta de destino desejada.
-
-// Middleware configurado para a pasta 'logos' (para farmácias e laboratórios)
+// Instâncias configuradas para pastas específicas
 const uploadLogo = uploadImage('logos');
-
-// Middleware configurado para a pasta 'medicamentos'
 const uploadMedicamento = uploadImage('medicamentos');
 
 
@@ -42,7 +36,28 @@ const uploadMedicamento = uploadImage('medicamentos');
 // DEFINIÇÃO DAS ROTAS
 // ==================================================================
 
-// Routes para cidades
+// --------------------------------------------------
+// ROTAS DE USUÁRIOS (Corrigidas e Priorizadas)
+// --------------------------------------------------
+
+// 1. Rotas Específicas (Login e Redefinição SEM ID na URL)
+// Importante: /redefinir deve vir antes de /:usu_id para não ser confundido com um ID
+router.post("/usuarios/login", UsuariosController.loginUsuario);
+router.put('/usuarios/redefinir', UsuariosController.redefinirSenha); 
+
+// 2. Rotas Gerais (Listar todos e Cadastrar)
+router.get("/usuarios", UsuariosController.listarUsuario);
+router.post("/usuarios", UsuariosController.cadastrarUsuario);
+
+// 3. Rotas com ID (Devem vir por último neste grupo)
+router.get('/usuarios/:usu_id', UsuariosController.listarUsuarioPorId); // Rota usada pelo App para pegar dados
+router.put('/usuarios/:usu_id', UsuariosController.editarUsuario);      // Rota usada pelo App para editar perfil
+router.delete("/usuarios/:usu_id", UsuariosController.apagarUsuario);
+
+
+// --------------------------------------------------
+// CIDADES
+// --------------------------------------------------
 router.get("/cidades", CidadesController.listarCidade);
 router.get("/ufs", CidadesController.listarUfs);
 router.post("/cidades", CidadesController.cadastrarCidade);
@@ -52,7 +67,9 @@ router.get("/cidades/:cidade_id", ListarUnicoController.listarUnicaCidade);
 router.get("/cidade", ListarParametroController.listarCidadeParametro);
 router.get("/cidade/cidadelimit", ListarUnicoController.listarLimiteCidade);
 
-// ### ROTAS DE FARMÁCIAS CORRIGIDAS ###
+// --------------------------------------------------
+// FARMÁCIAS
+// --------------------------------------------------
 router.get('/farmacias', FarmaciasController.listarFarmacias); 
 router.get('/farmacias/:farm_id', FarmaciasController.listarFarmaciaPorId);
 router.post("/farmacias", uploadLogo.single('farm_logo'), FarmaciasController.cadastrarFarmacias);
@@ -63,7 +80,9 @@ router.post("/farmacias/verificar-email", FarmaciasController.verificarEmail);
 router.post("/farmacias/redefinir-senha-por-email", FarmaciasController.redefinirSenhaPorEmail);
 router.get('/farmacias/:farm_id/medicamentos', FarmaciasController.listarMedicamentosPorFarmacia);
 
-// Routes para medicamentos
+// --------------------------------------------------
+// MEDICAMENTOS
+// --------------------------------------------------
 router.get("/medicamentos", MedicamentosController.listarMedicamentos);
 router.get('/medicamentos/todos', MedicamentosController.listarTodosMedicamentosPaginado);
 router.post("/medicamentos", uploadMedicamento.single('med_imagem'), MedicamentosController.cadastrarMedicamentos);
@@ -71,16 +90,18 @@ router.get("/medicamentos/:med_id", MedicamentosController.listarMedicamentoPorI
 router.put("/medicamentos/:med_id", uploadMedicamento.single('med_imagem'), MedicamentosController.editarMedicamentos); 
 router.delete("/medicamentos/:med_id", MedicamentosController.apagarMedicamentos);
 router.get('/medicamentos/tipo/:tipo_id', CategoriaController.listarCategoria);
+router.get('/medicamentos/:med_id/farmacias', MedicamentosController.listarFarmaciasPorMedicamento);
+router.get('/paginado', MedicamentosController.listarTodosMedicamentosBusca);
 
-// Routes para precos medicamentos
+// --------------------------------------------------
+// PREÇOS E PROMOÇÕES
+// --------------------------------------------------
 router.get("/medpreco", MedPrecoController.listarMedPreco);
 router.post("/medpreco", MedPrecoController.cadastrarMedPreco);
 router.patch("/medpreco/:medpreco_id", MedPrecoController.editarMedPreco);
 router.delete("/medpreco/:medpreco_id", MedPrecoController.apagarMedPreco);
 router.get("/medpreco/:medpreco_id", ListarUnicoController.listarUnicoMedPreco);
 
-// Routes para promoções
-// === CORREÇÃO: Apontado para 'listarPromocoesPorFarmacia' que existe no controller ===
 router.get("/promocoes", PromocoesController.listarPromocoesPorFarmacia);
 router.post("/promocoes", PromocoesController.cadastrarPromocoes);
 router.patch("/promocoes/:promo_id", PromocoesController.editarPromocoes);
@@ -88,70 +109,56 @@ router.delete("/promocoes/:promo_id", PromocoesController.apagarPromocoes);
 router.get("/promocoes/:promo_id", ListarUnicoController.listarUnicaPromocao);
 router.get("/promocao/promocoes", ListarUnicoController.listarLimitePromocao);
 
-// Routes para tipos de produtos
+// --------------------------------------------------
+// CADASTROS AUXILIARES (Tipos, Formas, Laboratórios)
+// --------------------------------------------------
 router.get("/tipoproduto", TiposProdutoController.listarTipoProduto);
 router.post("/tipoproduto", TiposProdutoController.cadastrarTipoProduto);
 router.patch("/tipoproduto/:tipo_id", TiposProdutoController.editarTipoProduto);
 router.delete("/tipoproduto/:tipo_id", TiposProdutoController.apagarTipoProduto);
 router.get("/tipoproduto/:tipo_id", ListarUnicoController.listarUnicoTipoProduto);
 
-// Routes para formas farmacêuticas
 router.get("/farmaceutica", FormaFarmaceuticaController.listarFarmaceutica);
 router.post("/farmaceutica", FormaFarmaceuticaController.cadastrarFarmaceutica);
 router.patch("/farmaceutica/:forma_id", FormaFarmaceuticaController.editarFarmaceutica);
 router.delete("/farmaceutica/:forma_id", FormaFarmaceuticaController.apagarFarmaceutica);
 router.get("/farmaceutica/:forma_id", ListarUnicoController.listarUnicaFormaFarmaceutica);
 
-// Routes para laboratórios
 router.get("/laboratorios", LaboratorioController.listarLaboratorio);
 router.post('/laboratorios', uploadLogo.single('lab_logo'), LaboratorioController.cadastrarLaboratorio);
 router.put('/laboratorios/:lab_id', uploadLogo.single('lab_logo'), LaboratorioController.editarLaboratorio);
 router.delete("/laboratorios/:lab_id", LaboratorioController.apagarLaboratorio);
-// === CORREÇÃO: Rota com trailing slash removida (era duplicada de /laboratorios ou mal definida) ===
-// router.get("/laboratorios/", LaboratorioController.listarMedicamentosLab); 
 router.get('/laboratorios/:lab_id', LaboratorioController.listarUmLaboratorio);
 router.get("/todoslab", LaboratorioController.listarLaboratorioTodos);
 
-// Routes para funcionários
+// --------------------------------------------------
+// FUNCIONÁRIOS
+// --------------------------------------------------
 router.get("/funcionario", FuncionariosController.listarFuncionarios);
 router.post("/funcionario", FuncionariosController.cadastrarFuncionarios);
 router.patch("/funcionario/:func_id", FuncionariosController.editarFuncionarios);
 router.delete("/funcionario/:func_id", FuncionariosController.apagarFuncionarios);
 router.get("/funcionario/:func_id", FuncionariosController.listarFuncionarioPorId);
 
-// Routes para usuários
-router.get("/usuarios", UsuariosController.listarUsuario);
-router.post("/usuarios", UsuariosController.cadastrarUsuario);
-router.put("/usuarios/:usu_id", UsuariosController.editarUsuario);
-router.delete("/usuarios/:usu_id", UsuariosController.apagarUsuario);
-router.get("/usuarios/:usu_id", ListarUnicoController.listarUnicoUsuario);
-router.post("/usuarios/login", UsuariosController.loginUsuario);
-router.get('/usuarios/:usu_id', UsuariosController.listarUsuarioPorId);
-
-// Routes para avaliações
+// --------------------------------------------------
+// AVALIAÇÕES E FAVORITOS
+// --------------------------------------------------
 router.get("/avaliacao", AvaliacaoController.listarAvaliacao);
 router.post("/avaliacao", AvaliacaoController.cadastrarAvaliacao);
 router.patch("/avaliacao/:ava_id", AvaliacaoController.editarAvaliacao);
 router.delete("/avaliacao/:ava_id", AvaliacaoController.apagarAvaliacao);
 router.get("/avaliacao/:ava_id", ListarUnicoController.listarUnicaAvaliacao);
 
-// Routes para favoritos
 router.get("/favoritos", FavoritosController.listarFavoritos);
 router.post("/favoritos", FavoritosController.cadastrarFavoritos);
 router.delete("/favoritos/:fav_id", FavoritosController.apagarFavoritos);
-//router.get("/favoritos/:fav_id", FavoritosController.listarFavoritosComLaboratorio);
 router.get('/favoritos/:farm_id/favoritos', FavoritosController.listarFavoritosPorFarmacia);
 router.get('/favoritos/usuario/:usuario_id', FavoritosController.listarFavoritosPorUsuario);
-// === CORREÇÃO: Rota duplicada removida ===
-// router.get('/favoritos/usuario/:usuario_id', FavoritosController.listarFavoritosPorUsuario); 
 
-// Rota de Login
+// --------------------------------------------------
+// OUTROS LOGINS (Farmácia e Funcionário)
+// --------------------------------------------------
 router.post("/loginfarm", LoginFarmController.loginFarm);
 router.post("/loginfunc", LoginFarmController.loginFunc);
-router.get('/medicamentos/:med_id/farmacias', MedicamentosController.listarFarmaciasPorMedicamento);
-router.get('/paginado', MedicamentosController.listarTodosMedicamentosBusca);
-
-// === CORREÇÃO: Comentário duplicado e desnecessário removido ===
-// router.get('/medicamentos/tipo/:tipo_id', CategoriaController.listarCategoria);
 
 module.exports = router;
