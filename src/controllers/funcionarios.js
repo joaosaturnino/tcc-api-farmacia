@@ -1,39 +1,45 @@
 const db = require("../dataBase/connection");
 
-/**
- * Função helper para lidar com erros de servidor de forma padronizada.
- */
+// Helper para centralizar o tratamento de erros 500
 const handleServerError = (response, error) => {
-  console.error(error); // Loga o erro no console do servidor
+  console.error("Erro no servidor:", error);
   return response.status(500).json({
     sucesso: false,
-    mensagem: 'Ocorreu um erro inesperado no servidor. Tente novamente mais tarde.',
+    mensagem: 'Ocorreu um erro inesperado no servidor.',
+    dados: error.message
   });
 };
 
 module.exports = {
-  /**
-   * Lista todos os funcionários de uma farmácia específica.
-   */
+  // ==================================================================
+  // LISTAR FUNCIONÁRIOS DE UMA FARMÁCIA
+  // ==================================================================
   async listarFuncionarios(request, response) {
     try {
-      // O ID da farmácia vem pela Query String (ex: /funcionarios?farmacia_id=1)
+      // O ID da farmácia vem via Query String (?farmacia_id=1)
       const { farmacia_id } = request.query;
+      
       if (!farmacia_id) {
         return response.status(400).json({ 
           sucesso: false, 
-          mensagem: 'O ID da farmácia é obrigatório para listar os funcionários.' 
+          mensagem: 'O ID da farmácia é obrigatório.' 
         });
       }
 
-      // Seleciona os campos relevantes (sem a senha)
-      const sql = "SELECT func_id, func_nome, func_email, func_telefone, func_cpf, func_dtnasc, func_endereco, func_usuario, func_nivel, func_data_cadastro FROM funcionario WHERE farmacia_id = ?;";
+      // Seleciona apenas dados seguros (sem a senha)
+      const sql = `
+        SELECT func_id, func_nome, func_email, func_telefone, func_cpf, 
+               func_dtnasc, func_endereco, func_usuario, func_nivel, func_data_cadastro 
+        FROM funcionario 
+        WHERE farmacia_id = ?;
+      `;
       
       const [rows] = await db.query(sql, [farmacia_id]);
       
       return response.status(200).json({
         sucesso: true,
         mensagem: "Lista de funcionários recuperada com sucesso.",
+        itens: rows.length,
         dados: rows,
       });
     } catch (error) {
@@ -41,29 +47,36 @@ module.exports = {
     }
   },
 
-  /**
-   * Lista um funcionário específico pelo ID, verificando se ele pertence à farmácia.
-   */
+  // ==================================================================
+  // DETALHES DE UM FUNCIONÁRIO (POR ID)
+  // ==================================================================
   async listarFuncionarioPorId(request, response) {
     try {
-      const { func_id } = request.params; // ID do funcionário
-      const { farmacia_id } = request.query; // ID da farmácia para validação
+      const { func_id } = request.params;
+      const { farmacia_id } = request.query; // Validação de segurança
 
       if (!farmacia_id) {
         return response.status(400).json({ 
           sucesso: false, 
-          mensagem: "O ID da farmácia é obrigatório para a consulta." 
+          mensagem: "O ID da farmácia é obrigatório." 
         });
       }
 
-      const sql = "SELECT func_id, func_nome, func_email, func_telefone, func_cpf, func_dtnasc, func_endereco, farmacia_id, func_usuario, func_nivel, func_data_cadastro FROM funcionario WHERE func_id = ? AND farmacia_id = ?;";
+      // Garante que o funcionário pertença à farmácia solicitante
+      const sql = `
+        SELECT func_id, func_nome, func_email, func_telefone, func_cpf, 
+               func_dtnasc, func_endereco, farmacia_id, func_usuario, 
+               func_nivel, func_data_cadastro 
+        FROM funcionario 
+        WHERE func_id = ? AND farmacia_id = ?;
+      `;
       
       const [rows] = await db.query(sql, [func_id, farmacia_id]);
 
       if (rows.length === 0) {
         return response.status(404).json({ 
           sucesso: false, 
-          mensagem: "Funcionário não encontrado ou não pertence a esta farmácia." 
+          mensagem: "Funcionário não encontrado nesta farmácia." 
         });
       }
       
@@ -77,115 +90,145 @@ module.exports = {
     }
   },
 
-  /**
-   * Cadastra um novo funcionário. (ATENÇÃO: Senha em texto puro)
-   */
+  // ==================================================================
+  // CADASTRAR NOVO FUNCIONÁRIO
+  // ==================================================================
   async cadastrarFuncionarios(request, response) {
     try {
-      const { func_nome, func_email, func_telefone, func_cpf, func_dtnasc, func_endereco, farmacia_id, func_usuario, func_senha, func_nivel } = request.body;
+      const { 
+        func_nome, func_email, func_telefone, func_cpf, func_dtnasc, 
+        func_endereco, farmacia_id, func_usuario, func_senha, func_nivel 
+      } = request.body;
       
-      // === CORREÇÃO: Validação de todos os campos obrigatórios, incluindo 'func_nivel' ===
-      if (!func_nome || !func_email || !func_telefone || !func_cpf || !func_dtnasc || !func_endereco || !farmacia_id || !func_usuario || !func_senha || !func_nivel) {
+      // Validação rigorosa de todos os campos
+      if (!func_nome || !func_email || !func_telefone || !func_cpf || !func_dtnasc || 
+          !func_endereco || !farmacia_id || !func_usuario || !func_senha || !func_nivel) {
         return response.status(400).json({ 
           sucesso: false, 
           mensagem: "Todos os campos são obrigatórios." 
         });
       }
       
-      const sql = "INSERT INTO funcionario (func_nome, func_email, func_telefone, func_cpf, func_dtnasc, func_endereco, farmacia_id, func_usuario, func_senha, func_nivel) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+      const sql = `
+        INSERT INTO funcionario 
+        (func_nome, func_email, func_telefone, func_cpf, func_dtnasc, func_endereco, farmacia_id, func_usuario, func_senha, func_nivel) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+      `;
       
-      // Salva a senha em texto puro, como no arquivo original
-      const values = [func_nome, func_email, func_telefone, func_cpf, func_dtnasc, func_endereco, farmacia_id, func_usuario, func_senha, func_nivel];
+      // Nota: A senha está sendo salva em texto puro conforme solicitado.
+      // Recomendação futura: Usar bcrypt.hash()
+      const values = [
+          func_nome, func_email, func_telefone, func_cpf, func_dtnasc, 
+          func_endereco, farmacia_id, func_usuario, func_senha, func_nivel
+      ];
       
-      const [rows] = await db.query(sql, values);
+      const [result] = await db.query(sql, values);
       
       return response.status(201).json({
         sucesso: true,
         mensagem: "Funcionário cadastrado com sucesso.",
-        dados: { func_id: rows.insertId }, // Retorna o ID do novo funcionário
+        dados: { func_id: result.insertId },
       });
+
     } catch (error) {
-      // Trata erro de duplicidade (ex: CPF ou e-mail já existe)
+      // Erro de chave única (ex: CPF ou Usuário já existem)
       if (error.code === 'ER_DUP_ENTRY') {
         return response.status(409).json({ 
           sucesso: false, 
-          mensagem: 'CPF, e-mail ou nome de usuário já cadastrado.' 
+          mensagem: 'CPF, E-mail ou Nome de Usuário já cadastrados no sistema.' 
         });
       }
       return handleServerError(response, error);
     }
   },
 
-  /**
-   * Edita um funcionário existente. (ATENÇÃO: Senha em texto puro)
-   */
+  // ==================================================================
+  // EDITAR FUNCIONÁRIO
+  // ==================================================================
   async editarFuncionarios(request, response) {
     try {
       const { func_id } = request.params;
-      const { func_nome, func_email, func_telefone, func_cpf, func_dtnasc, func_endereco, farmacia_id, func_usuario, func_senha, func_nivel } = request.body;
+      const { 
+        func_nome, func_email, func_telefone, func_cpf, func_dtnasc, 
+        func_endereco, farmacia_id, func_usuario, func_senha, func_nivel 
+      } = request.body;
 
-      // Validação dos IDs
-      if (!farmacia_id || !func_id) {
+      if (!farmacia_id) {
         return response.status(400).json({ 
           sucesso: false, 
-          mensagem: "O ID da farmácia e do funcionário são obrigatórios." 
+          mensagem: "O ID da farmácia é obrigatório para edição." 
         });
       }
       
-      // === CORREÇÃO: Validação dos campos obrigatórios (senha é opcional na edição), incluindo 'func_nivel' ===
-      if (!func_nome || !func_email || !func_telefone || !func_cpf || !func_dtnasc || !func_endereco || !func_usuario || !func_nivel) {
+      // Validação: Tudo obrigatório exceto a senha (que pode ser mantida a mesma)
+      if (!func_nome || !func_email || !func_telefone || !func_cpf || !func_dtnasc || 
+          !func_endereco || !func_usuario || !func_nivel) {
         return response.status(400).json({ 
           sucesso: false, 
-          mensagem: "Todos os campos, exceto a senha, são obrigatórios." 
+          mensagem: "Todos os campos (exceto senha) são obrigatórios." 
         });
       }
 
       let sql;
       let values;
 
-      // Verifica se uma nova senha foi enviada
+      // Lógica condicional: Só atualiza a senha se ela for enviada
       if (func_senha && func_senha.trim() !== "") {
-        // SQL para atualizar TUDO, incluindo a senha (em texto puro)
-        sql = "UPDATE funcionario SET func_nome = ?, func_email = ?, func_telefone = ?, func_cpf = ?, func_dtnasc = ?, func_endereco = ?, func_usuario = ?, func_senha = ?, func_nivel = ? WHERE func_id = ? AND farmacia_id = ?;";
-        values = [func_nome, func_email, func_telefone, func_cpf, func_dtnasc, func_endereco, func_usuario, func_senha, func_nivel, func_id, farmacia_id];
+        sql = `
+            UPDATE funcionario SET 
+            func_nome = ?, func_email = ?, func_telefone = ?, func_cpf = ?, 
+            func_dtnasc = ?, func_endereco = ?, func_usuario = ?, func_senha = ?, func_nivel = ? 
+            WHERE func_id = ? AND farmacia_id = ?;
+        `;
+        values = [
+            func_nome, func_email, func_telefone, func_cpf, func_dtnasc, 
+            func_endereco, func_usuario, func_senha, func_nivel, func_id, farmacia_id
+        ];
       } else {
-        // Se não, SQL para atualizar tudo, MENOS a senha
-        sql = "UPDATE funcionario SET func_nome = ?, func_email = ?, func_telefone = ?, func_cpf = ?, func_dtnasc = ?, func_endereco = ?, func_usuario = ?, func_nivel = ? WHERE func_id = ? AND farmacia_id = ?;";
-        values = [func_nome, func_email, func_telefone, func_cpf, func_dtnasc, func_endereco, func_usuario, func_nivel, func_id, farmacia_id];
+        sql = `
+            UPDATE funcionario SET 
+            func_nome = ?, func_email = ?, func_telefone = ?, func_cpf = ?, 
+            func_dtnasc = ?, func_endereco = ?, func_usuario = ?, func_nivel = ? 
+            WHERE func_id = ? AND farmacia_id = ?;
+        `;
+        values = [
+            func_nome, func_email, func_telefone, func_cpf, func_dtnasc, 
+            func_endereco, func_usuario, func_nivel, func_id, farmacia_id
+        ];
       }
 
-      const [rows] = await db.query(sql, values);
+      const [result] = await db.query(sql, values);
 
-      if (rows.affectedRows === 0) {
+      if (result.affectedRows === 0) {
         return response.status(404).json({ 
           sucesso: false, 
-          mensagem: "Funcionário não encontrado ou não pertence a esta farmácia." 
+          mensagem: "Funcionário não encontrado nesta farmácia." 
         });
       }
 
       return response.status(200).json({ 
         sucesso: true, 
-        mensagem: "Funcionário editado com sucesso." 
+        mensagem: "Funcionário atualizado com sucesso." 
       });
     } catch (error) {
       if (error.code === 'ER_DUP_ENTRY') {
         return response.status(409).json({ 
           sucesso: false, 
-          mensagem: 'CPF, e-mail ou nome de usuário já cadastrado.' 
+          mensagem: 'Dados duplicados (CPF/Email/Usuário) já existem.' 
         });
       }
       return handleServerError(response, error);
     }
   },
 
-  /**
-   * Apaga um funcionário, verificando pela query string o ID da farmácia.
-   */
+  // ==================================================================
+  // REMOVER FUNCIONÁRIO
+  // ==================================================================
   async apagarFuncionarios(request, response) {
     try {
       const { func_id } = request.params;
-      // === CORREÇÃO DE LÓGICA: 'farmacia_id' deve vir da query no método DELETE ===
-      const { farmacia_id } = request.query;
+      // Pega o ID da farmácia do body (mais seguro em DELETEs com payload) ou query
+      const farmacia_id = request.body.farmacia_id || request.query.farmacia_id;
 
       if (!farmacia_id) {
         return response.status(400).json({ 
@@ -195,10 +238,9 @@ module.exports = {
       }
 
       const sql = "DELETE FROM funcionario WHERE func_id = ? AND farmacia_id = ?;";
-      const values = [func_id, farmacia_id];
-      const [rows] = await db.query(sql, values);
+      const [result] = await db.query(sql, [func_id, farmacia_id]);
       
-      if (rows.affectedRows === 0) {
+      if (result.affectedRows === 0) {
         return response.status(404).json({ 
           sucesso: false, 
           mensagem: "Funcionário não encontrado ou não pertence a esta farmácia." 
@@ -207,7 +249,7 @@ module.exports = {
 
       return response.status(200).json({ 
         sucesso: true, 
-        mensagem: "Funcionário apagado com sucesso." 
+        mensagem: "Funcionário removido com sucesso." 
       });
     } catch (error) {
       return handleServerError(response, error);

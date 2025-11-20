@@ -1,5 +1,6 @@
 const db = require('../dataBase/connection');
 
+// Helper para tratamento de erro padrão
 const handleServerError = (response, error) => {
   console.error(error);
   return response.status(500).json({
@@ -11,7 +12,9 @@ const handleServerError = (response, error) => {
 
 module.exports = {
 
-  // === CORRIGIDO: Nomes das colunas no SELECT e WHERE ===
+  // ==================================================================
+  // LISTAR PROMOÇÕES (POR FARMÁCIA)
+  // ==================================================================
   async listarPromocoesPorFarmacia(request, response) {
     try {
       const { farmacia_id } = request.query;
@@ -20,10 +23,10 @@ module.exports = {
         return response.status(400).json({ sucesso: false, mensagem: 'O parâmetro farmacia_id é obrigatório.' });
       }
 
-      const today = new Date().toISOString().slice(0, 10); // Formato YYYY-MM-DD
+      // Data de hoje para filtrar apenas promoções válidas ou futuras
+      const today = new Date().toISOString().slice(0, 10); 
 
-      // === CORRIGIDO: Ajustado para usar promo_desconto, promo_inicio, promo_fim ===
-      // Busca apenas promoções que AINDA ESTÃO ATIVAS (promo_fim >= hoje)
+      // Busca promoções onde a data de fim ainda não passou
       const sql = `
         SELECT 
           promo_id, 
@@ -50,9 +53,11 @@ module.exports = {
     }
   },
 
+  // ==================================================================
+  // CADASTRAR NOVA PROMOÇÃO
+  // ==================================================================
   async cadastrarPromocoes(request, response) {
     try {
-      // === CORRIGIDO: Nomes dos campos ajustados para promo_desconto, promo_inicio, promo_fim ===
       const { 
         farmacia_id, 
         medicamento_id, 
@@ -61,22 +66,24 @@ module.exports = {
         promo_fim
       } = request.body;
       
+      // 1. Validação de campos obrigatórios
       if (!farmacia_id || !medicamento_id || !promo_desconto || !promo_inicio || !promo_fim) {
         return response.status(400).json({ sucesso: false, mensagem: 'Todos os campos são obrigatórios.' });
       }
 
-      // === ADICIONADO: Validação de promoção existente ===
+      // 2. Validação de conflito: Já existe promoção ativa para este remédio?
       const today = new Date().toISOString().slice(0, 10);
-      // === CORRIGIDO: Usando promo_fim na verificação ===
       const checkSql = 'SELECT promo_id FROM promocao WHERE medicamento_id = ? AND farmacia_id = ? AND promo_fim >= ?';
       const [existing] = await db.query(checkSql, [medicamento_id, farmacia_id, today]);
 
       if (existing.length > 0) {
-        return response.status(409).json({ sucesso: false, mensagem: 'Este medicamento já possui uma promoção ativa. Remova a promoção existente primeiro.' });
+        return response.status(409).json({ 
+            sucesso: false, 
+            mensagem: 'Este medicamento já possui uma promoção ativa. Edite a existente ou aguarde o término.' 
+        });
       }
-      // === FIM ADIÇÃO ===
 
-      // === CORRIGIDO: Nomes das colunas ajustados no SQL ===
+      // 3. Inserção no banco
       const sql = `
         INSERT INTO promocao 
           (farmacia_id, medicamento_id, promo_desconto, promo_inicio, promo_fim) 
@@ -87,13 +94,13 @@ module.exports = {
       const [result] = await db.query(sql, values);
       const newPromoId = result.insertId;
 
-      // === CORRIGIDO: Retorna o novo objeto criado, como o frontend espera ===
+      // 4. Retorna os dados da nova promoção
       const [newPromoData] = await db.query('SELECT * FROM promocao WHERE promo_id = ?', [newPromoId]);
       
       return response.status(201).json({
         sucesso: true,
         mensagem: 'Promoção cadastrada com sucesso.',
-        dados: newPromoData[0] // Retorna o objeto completo
+        dados: newPromoData[0]
       });
 
     } catch (error) {
@@ -101,19 +108,21 @@ module.exports = {
     }
   },
 
+  // ==================================================================
+  // EDITAR PROMOÇÃO
+  // ==================================================================
   async editarPromocoes(request, response) {
     try {
-      // === CORRIGIDO: Nomes dos campos ajustados para promo_desconto, promo_inicio, promo_fim ===
       const { 
         farmacia_id, 
         medicamento_id, 
-        promo_desconto,
-        promo_inicio,
-        promo_fim
+        promo_desconto, 
+        promo_inicio, 
+        promo_fim 
       } = request.body;
+      
       const { promo_id } = request.params;
 
-      // === CORRIGIDO: Nomes das colunas ajustados no SQL ===
       const sql = `
         UPDATE promocao SET 
           farmacia_id = ?, 
@@ -127,7 +136,6 @@ module.exports = {
       
       const [result] = await db.query(sql, values);
 
-      // === MELHORIA: Adicionado verificação de 404 ===
       if (result.affectedRows === 0) {
         return response.status(404).json({
           sucesso: false,
@@ -135,19 +143,22 @@ module.exports = {
         });
       }
 
-      // === MELHORIA: Buscar dados atualizados para retornar (consistência com o POST) ===
+      // Retorna o objeto atualizado para o front-end
       const [updatedData] = await db.query('SELECT * FROM promocao WHERE promo_id = ?', [promo_id]);
       
       return response.status(200).json({
         sucesso: true,
         mensagem: 'Promoção editada com sucesso.',
-        dados: updatedData[0] // Retorna o objeto atualizado
+        dados: updatedData[0]
       });
     } catch (error) {
       return handleServerError(response, error);
     }
   },
 
+  // ==================================================================
+  // APAGAR PROMOÇÃO
+  // ==================================================================
   async apagarPromocoes(request, response) {
     try {
       const { promo_id } = request.params;
@@ -167,8 +178,7 @@ module.exports = {
 
       return response.status(200).json({
         sucesso: true,
-        mensagem: 'Promoção apagada com sucesso.',
-        dados: rows // Manter assim é aceitável para DELETE
+        mensagem: 'Promoção removida com sucesso.'
       });
     } catch (error) {
       return handleServerError(response, error);

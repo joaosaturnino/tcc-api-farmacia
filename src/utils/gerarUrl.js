@@ -1,50 +1,61 @@
 const fse = require('fs-extra');
 const path = require('path');
-const { URL } = require('url'); // Módulo nativo do Node.js para trabalhar com URLs
+require('dotenv').config(); // Garante que as variáveis de ambiente sejam lidas
 
 /**
- * Caminho físico para a pasta 'public'.
+ * Caminho físico para a pasta 'public' no servidor.
+ * Usado para checar se o arquivo existe no disco.
  */
 const PUBLIC_ROOT_PATH = path.join(process.cwd(), 'public');
 
 /**
- * Lê a URL base da API a partir das variáveis de ambiente.
- * Fornece um valor padrão caso a variável não esteja definida.
+ * Lê a URL base da API.
+ * IMPORTANTE: Se não houver variável de ambiente, usa o IP da máquina.
+ * 'localhost' não funciona no Android/Expo, tem que ser o IP da rede (IPv4).
  */
-const API_URL = process.env.API_BASE_URL || 'http://localhost:3334';
+const API_URL = process.env.API_BASE_URL || 'http://10.72.152.164:3334';
 
 /**
- * Gera uma URL pública e COMPLETA para um recurso (imagem, ícone, etc.).
+ * Gera uma URL pública completa para um recurso.
+ * Verifica se o arquivo existe; se não, retorna a imagem padrão.
  *
  * @param {string} nomeArquivo O nome do arquivo salvo no banco (ex: "produto-123.jpg").
  * @param {string} pasta A subpasta dentro de 'public/' (ex: "produtos").
- * @param {string} arquivoPadrao O nome do arquivo a ser usado se o principal não for encontrado.
- * @returns {string} A URL completa e formatada (ex: 'http://localhost:3333/public/produtos/produto-123.jpg').
+ * @param {string} arquivoPadrao O nome do arquivo fallback (ex: "padrao.png").
+ * @returns {string} A URL completa (ex: 'http://192.168.200.27:3334/public/produtos/foto.jpg').
  */
 function gerarUrl(nomeArquivo, pasta, arquivoPadrao) {
-  // Define qual arquivo será verificado: o nomeArquivo ou o arquivoPadrao
-  const arquivoVerificar = nomeArquivo || arquivoPadrao; 
-  // Caminho físico completo para verificar se o arquivo existe
-  const caminhoFisico = path.join(PUBLIC_ROOT_PATH, pasta, arquivoVerificar); 
+    
+    // 1. Monta o caminho físico do arquivo solicitado para teste
+    // Ex: C:\Projetos\PharmaX\public\produtos\foto-teste.jpg
+    const caminhoFisicoArquivo = path.join(PUBLIC_ROOT_PATH, pasta, nomeArquivo || '');
 
-  let caminhoRelativo;
+    let arquivoFinal = arquivoPadrao;
 
-  // Se um nome de arquivo foi fornecido e ele de fato existe no sistema de arquivos...
-  if (nomeArquivo && fse.existsSync(caminhoFisico)) { 
-    // ...usa o caminho para esse arquivo.
-    caminhoRelativo = path.join('/public', pasta, nomeArquivo); 
-  } else {
-    // ...caso contrário, usa o caminho do arquivo padrão.
-    caminhoRelativo = path.join('/public', pasta, arquivoPadrao); 
-  }
-  // Garante que o caminho relativo use barras normais '/' em vez de '\'
-  const caminhoRelativoFormatado = caminhoRelativo.replace(/\\/g, '/'); 
-  
-  // Constrói a URL completa de forma segura, evitando barras duplas (//)
-  const urlCompleta = new URL(caminhoRelativoFormatado, API_URL);
-  
-  return urlCompleta.href; 
+    // 2. Verifica se o nomeArquivo foi enviado E se ele realmente existe na pasta
+    if (nomeArquivo && nomeArquivo.trim() !== '' && fse.existsSync(caminhoFisicoArquivo)) {
+        arquivoFinal = nomeArquivo;
+    }
+
+    // 3. Monta o caminho relativo para a URL (Web path)
+    // Usa path.join para garantir a estrutura, depois substitui barras invertidas
+    // Ex: /public/produtos/foto.jpg
+    let caminhoRelativo = path.join('/public', pasta, arquivoFinal);
+    
+    // CORREÇÃO PARA WINDOWS: Transforma '\' em '/'
+    const caminhoWeb = caminhoRelativo.replace(/\\/g, '/');
+
+    // 4. Concatena a URL do servidor com o caminho da imagem
+    // Retorna ex: http://192.168.200.27:3334/public/produtos/padrao.png
+    try {
+        // new URL lida corretamente com barras duplas e formatação
+        const urlCompleta = new URL(caminhoWeb, API_URL);
+        return urlCompleta.href;
+    } catch (error) {
+        console.error("Erro ao gerar URL:", error.message);
+        // Fallback de segurança caso a URL falhe
+        return `${API_URL}${caminhoWeb}`;
+    }
 }
 
-// Exporta a função para ser usada em outros arquivos
 module.exports = { gerarUrl };

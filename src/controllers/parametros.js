@@ -1,110 +1,122 @@
 const db = require('../dataBase/connection');
-const { json, response } = require('express');
+const { gerarUrl } = require('../utils/gerarUrl'); // Importante para imagens
 
-// Controller para gerenciar medicamentos
-// Este módulo contém funções para listar, cadastrar, editar e apagar medicamentos no banco de dados
 module.exports = {
 
+  // ==================================================================
+  // LISTAR MEDICAMENTOS POR NOME (BUSCA SIMPLES)
+  // ==================================================================
   async listarMedicamentosParametros(request, response) {
     try {
-      const { med_nome } = request.body;
+      // Pega o parâmetro da URL (ex: /buscar?med_nome=Dipi)
+      const { med_nome } = request.query; 
+      
       const medPesq = med_nome ? `%${med_nome}%` : `%%`;
-      // instrução sql para listar medicamentos
-      const sql = 'SELECT med_id, med_nome, med_dosagem, med_quantidade, forma_id descricao, lab_id, med_img, tipo_id FROM medicamento WHERE med_nome like ?;';
+      
+      const sql = `
+        SELECT 
+          med_id, med_nome, med_dosagem, med_quantidade, 
+          forma_id, med_descricao, lab_id, med_imagem, tipo_id 
+        FROM medicamento 
+        WHERE med_nome LIKE ? AND med_ativo = 1;
+      `;
 
       const values = [medPesq];
-      // executa a instrução de listagem no banco de dados
+      
+      // Executa a consulta apenas uma vez
       const [rows] = await db.query(sql, values);
-      const medicamentos = await db.query(sql, values);
-      const nItens = medicamentos[0].length;
 
-      // chamada para montar a url da imagem
-      //const resultado = medicamentos[0].map(geraUrl);
-      // exibe o resultado da consulta
+      // Processa as imagens
+      const dadosComUrl = rows.map(item => ({
+        ...item,
+        med_imagem: gerarUrl(item.med_imagem, 'medicamentos', 'sem-imagem.png')
+      }));
+
       return response.status(200).json({
         sucesso: true,
-        mensagem: 'Lista de medicamentos',
-        itens: rows.length,
-        dados: rows, //medicamentos[0], // , medicamentos, //, resultado
-        nItens
+        mensagem: 'Resultado da busca de medicamentos.',
+        itens: dadosComUrl.length,
+        dados: dadosComUrl
       });
-      // retorna erro caso ocorra
-    }catch (error) {
+
+    } catch (error) {
       return response.status(500).json({
         sucesso: false,
         mensagem: 'Erro na requisição.',
-        dados: error.mensage
+        dados: error.message // Corrigido de 'mensage'
       });
     }
   },
 
-  // Listar Cidades
+  // ==================================================================
+  // LISTAR CIDADES (FILTRO POR UF E NOME)
+  // ==================================================================
   async listarCidadeParametro(request, response) {
     try {
+      const { uf_sigla, nome_cidade } = request.query;
+      
+      // Construção dinâmica da query
+      let sql = 'SELECT cidade_id, nome_cidade, uf_sigla FROM cidade WHERE 1=1';
+      const values = [];
 
-    // Parâmetros passados via corpo de requisição
-      const { uf_sigla, nome_cidade  } = request.body;
-      // Instrução SQL para listar cidades
-      const cidPesq = nome_cidade ? `%${nome_cidade}%` : `%%`;
-      const sql = `SELECT
-                  cidade_id, nome_cidade, uf_sigla
-                  FROM cidade
-                  WHERE uf_sigla = ? AND nome_cidade like ?;`;
-      
-      
-      const values = [uf_sigla, cidPesq];
-      // Executa a consulta no banco de dados
-      const cidades = await db.query(sql, values);
-      // Verifica se há registros retornados
-      const nItens = cidades[0].length;
+      // Se enviou UF, adiciona o filtro
+      if (uf_sigla) {
+        sql += ' AND uf_sigla = ?';
+        values.push(uf_sigla);
+      }
+
+      // Se enviou parte do nome, adiciona o filtro
+      if (nome_cidade) {
+        sql += ' AND nome_cidade LIKE ?';
+        values.push(`%${nome_cidade}%`);
+      }
+
+      sql += ' ORDER BY nome_cidade ASC LIMIT 50;'; // Limite de segurança
+
+      const [rows] = await db.query(sql, values);
 
       return response.status(200).json({
         sucesso: true,
-        mensagem: 'Lista de cidades',
-        dados: cidades[0],
-        nItens
+        mensagem: 'Lista de cidades filtrada.',
+        itens: rows.length,
+        dados: rows
       });
-    }catch (error) {
+
+    } catch (error) {
       return response.status(500).json({
         sucesso: false,
         mensagem: 'Erro na requisição.',
-        dados: error.mensage
+        dados: error.message
       });
     }
   },
 
+  // ==================================================================
+  // LISTAR FORMAS FARMACÊUTICAS POR NOME
+  // ==================================================================
   async listarFormasParametros(request, response) {
     try {
-      const { forma_nome } = request.body;
+      const { forma_nome } = request.query;
       const formaPesq = forma_nome ? `%${forma_nome}%` : `%%`;
-      // instrução sql para listar medicamentos
-      const sql = 'SELECT forma_id, forma_nome FROM forma_farmaceutica WHERE forma_nome like ?;';
-
+      
+      const sql = 'SELECT forma_id, forma_nome FROM forma_farmaceutica WHERE forma_nome LIKE ?;';
       const values = [formaPesq];
-      // executa a instrução de listagem no banco de dados
+      
       const [rows] = await db.query(sql, values);
-      const formas = await db.query(sql, values);
-      const nItens = formas[0].length;
 
-      // chamada para montar a url da imagem
-      //const resultado = medicamentos[0].map(geraUrl);
-      // exibe o resultado da consulta
       return response.status(200).json({
         sucesso: true,
-        mensagem: 'Lista de medicamentos',
+        mensagem: 'Lista de formas farmacêuticas.', // Mensagem corrigida
         itens: rows.length,
-        dados: rows, //medicamentos[0], // , medicamentos, //, resultado
-        nItens
+        dados: rows
       });
-      // retorna erro caso ocorra
-    }catch (error) {
+
+    } catch (error) {
       return response.status(500).json({
         sucesso: false,
         mensagem: 'Erro na requisição.',
-        dados: error.mensage
+        dados: error.message
       });
     }
   },
-
-  
-}
+};

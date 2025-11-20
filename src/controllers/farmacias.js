@@ -3,19 +3,25 @@ const { gerarUrl } = require('../utils/gerarUrl');
 const bcrypt = require('bcrypt');
 
 module.exports = {
+  // Lista farmácias com opção de limite aleatório (para destaques na home)
   async listarFarmacias(request, response) {
     try {
-
       const { qtde } = request.query;
+
+      // Se passar o parâmetro 'qtde', retorna um número limitado de farmácias aleatórias
       if (qtde) {
         const sqlQtde = `SELECT farm_id, farm_nome, farm_cnpj, farm_endereco, farm_telefone, 
-                        farm_email,  farm_logo, farm_cidade_id FROM farmacia ORDER BY RAND() LIMIT ?;`;
+                        farm_email, farm_logo, farm_cidade_id 
+                        FROM farmacia ORDER BY RAND() LIMIT ?;`;
+        // parseInt garante que o limite seja um número inteiro
         const [rowsQtde] = await db.query(sqlQtde, [parseInt(qtde)]); 
+        
+        // Mapeia os resultados para adicionar a URL completa da logo
         const farmaciasComUrlQtde = rowsQtde.map(farmacia => ({
           ...farmacia,
-          // CORREÇÃO: A pasta 'teste' foi substituída por 'logos' para consistência.
           farm_logo_url: gerarUrl(farmacia.farm_logo, 'logos', 'default-logo.png')
         }));
+        
         return response.status(200).json({
           sucesso: true,
           mensagem: `Lista de farmácias (limitada a ${qtde})`,
@@ -24,10 +30,9 @@ module.exports = {
         });
       }
 
-
-
+      // Se não passar 'qtde', retorna todas as farmácias
       const sql = `SELECT farm_id, farm_nome, farm_cnpj, farm_endereco, farm_telefone, 
-                  farm_email,  farm_logo, farm_cidade_id FROM farmacia;`;
+                  farm_email, farm_logo, farm_cidade_id FROM farmacia;`;
       const [rows] = await db.query(sql);
       
       const farmaciasComUrl = rows.map(farmacia => ({
@@ -50,11 +55,13 @@ module.exports = {
     }
   },
 
+  // Busca os detalhes de uma farmácia específica pelo ID
   async listarFarmaciaPorId(request, response) {
     try {
       const { farm_id } = request.params;
       const sql = `SELECT farm_id, farm_nome, farm_cnpj, farm_endereco, farm_telefone, 
-                  farm_email, farm_logo, farm_cidade_id FROM farmacia WHERE farm_id = ?;`;
+                  farm_email, farm_logo, farm_cidade_id 
+                  FROM farmacia WHERE farm_id = ?;`;
       const [rows] = await db.query(sql, [farm_id]);
 
       if (rows.length === 0) {
@@ -84,15 +91,13 @@ module.exports = {
     }
   },
 
-  /**
-   * CORRIGIDO: Lista os medicamentos associados a uma farmácia através da tabela `medpreco`.
-   */
+  // Lista os medicamentos vendidos por uma farmácia específica
   async listarMedicamentosPorFarmacia(request, response) {
     try {
       const { farm_id } = request.params;
 
-      // CORREÇÃO: A consulta foi reescrita para juntar as tabelas `medicamento` e `medpreco`
-      // e buscar os dados corretos (preço e imagem) da farmácia específica.
+      // Join entre medpreco (tabela de ligação/preços), medicamento e laboratórios
+      // Correção: Usando med.med_imagem para garantir que pegamos a imagem do cadastro do remédio
       const sql = `
         SELECT 
           med.med_id as id, 
@@ -100,7 +105,7 @@ module.exports = {
           med.med_dosagem as dosagem,
           lab.lab_nome as laboratorio,
           mp.medp_preco as preco, 
-          mp.medp_imagem as imagem
+          med.med_imagem as imagem 
         FROM medpreco mp
         INNER JOIN medicamento med ON mp.medicamento_id = med.med_id
         LEFT JOIN laboratorios lab ON med.lab_id = lab.lab_id
@@ -128,10 +133,12 @@ module.exports = {
     }
   },
 
+  // Cadastra uma nova farmácia
   async cadastrarFarmacias(request, response) {
     try {
       const { farm_nome, farm_cnpj, farm_endereco, farm_telefone, farm_email, farm_senha, farm_cidade_id } = request.body;
       
+      // Validação básica de campos obrigatórios
       if (!farm_nome || !farm_email || !farm_senha) {
         return response.status(400).json({
           sucesso: false,
@@ -144,7 +151,7 @@ module.exports = {
         nomeArquivo = request.file.filename;
       }
 
-      // Hash da senha antes de salvar
+      // Criptografa a senha antes de salvar no banco
       const hashedSenha = await bcrypt.hash(farm_senha, 10);
 
       const sql = `INSERT INTO farmacia (farm_nome, farm_cnpj, farm_endereco, farm_telefone, 
@@ -153,6 +160,8 @@ module.exports = {
       const values = [farm_nome, farm_cnpj, farm_endereco, farm_telefone, farm_email, hashedSenha, nomeArquivo, farm_cidade_id];
       
       const [rows] = await db.query(sql, values);
+      
+      // Gera a URL da logo recém cadastrada para retornar ao front-end
       const farmaciaUrl = gerarUrl(nomeArquivo, 'logos', 'default-logo.png');
       
       return response.status(201).json({
@@ -174,11 +183,13 @@ module.exports = {
     }
   },
 
+  // Edita dados de uma farmácia existente
   async editarFarmacias(request, response) {
     try {
       const { farm_id } = request.params;
       const camposRecebidos = request.body; 
       
+      // Se não enviou campos nem arquivo, retorna erro
       if (Object.keys(camposRecebidos).length === 0 && !request.file) {
         return response.status(400).json({
           sucesso: false,
@@ -190,9 +201,10 @@ module.exports = {
       const values = [];
       let novoNomeArquivo = null;
 
-      // Se a senha for passada, faz hash antes de adicionar aos valores
+      // Itera sobre os campos recebidos para montar a query dinâmica
       for (const [key, value] of Object.entries(camposRecebidos)) {
         if (value !== null && value !== undefined) {
+          // Se for atualização de senha, criptografa a nova senha
           if (key === 'farm_senha' && value && value.trim() !== '') {
             const hashed = await bcrypt.hash(value, 10);
             camposParaAtualizar.push(`${key} = ?`);
@@ -204,6 +216,7 @@ module.exports = {
         }
       }
 
+      // Se enviou nova logo, atualiza o campo farm_logo
       if (request.file) {
         novoNomeArquivo = request.file.filename;
         camposParaAtualizar.push(`farm_logo = ?`);
@@ -221,6 +234,7 @@ module.exports = {
       const sql = `UPDATE farmacia SET ${camposParaAtualizar.join(', ')} WHERE farm_id = ?;`;
       await db.query(sql, values);
 
+      // Recupera a logo atual (nova ou a que já estava) para retornar a URL correta
       let nomeLogoFinal = novoNomeArquivo;
       if (!nomeLogoFinal) {
           const [result] = await db.query('SELECT farm_logo FROM farmacia WHERE farm_id = ?', [farm_id]);
@@ -248,6 +262,7 @@ module.exports = {
     }
   },
   
+  // Verifica se um e-mail existe (útil para recuperação de senha)
   async verificarEmail(request, response) {
     try {
       const { farm_email } = request.body;
@@ -269,6 +284,7 @@ module.exports = {
     }
   },
 
+  // Redefine senha via e-mail (fluxo de "esqueci minha senha")
   async redefinirSenhaPorEmail(request, response) {
     try {
       const { farm_email, nova_senha } = request.body;
@@ -281,6 +297,7 @@ module.exports = {
       const hashed = await bcrypt.hash(nova_senha, 10);
       const sql = 'UPDATE farmacia SET farm_senha = ? WHERE farm_email = ?;';
       const [result] = await db.query(sql, [hashed, farm_email]);
+      
       if (result.affectedRows === 0) {
         return response.status(404).json({ sucesso: false, mensagem: 'E-mail não encontrado para atualização.' });
       }
@@ -294,6 +311,7 @@ module.exports = {
     }
   },
 
+  // Altera senha logada (exige senha atual)
   async alterarSenha(request, response) {
     try {
       const { farm_id } = request.params;
@@ -307,17 +325,20 @@ module.exports = {
         return response.status(400).json({ sucesso: false, mensagem: 'A senha deve ter no mínimo 6 caracteres.' });
       }
 
+      // Busca a senha atual (hash) no banco
       const [rows] = await db.query('SELECT farm_senha FROM farmacia WHERE farm_id = ?;', [farm_id]);
       if (rows.length === 0) {
         return response.status(404).json({ sucesso: false, mensagem: 'Farmácia não encontrada.' });
       }
 
       const atualHash = rows[0].farm_senha;
+      // Compara a senha enviada com o hash do banco
       const match = await bcrypt.compare(senha_atual, atualHash);
       if (!match) {
         return response.status(401).json({ sucesso: false, mensagem: 'Senha atual incorreta.' });
       }
 
+      // Se correta, gera hash da nova senha e atualiza
       const novaHash = await bcrypt.hash(nova_senha, 10);
       const sql = 'UPDATE farmacia SET farm_senha = ? WHERE farm_id = ?;';
       await db.query(sql, [novaHash, farm_id]);
@@ -328,18 +349,34 @@ module.exports = {
     }
   },
 
+  // Remove uma farmácia
   async apagarFarmacias(request, response) {
     try {
       const { farm_id } = request.params;
       const sql = 'DELETE FROM farmacia WHERE farm_id = ?;';
       const values = [farm_id];
       const [rows] = await db.query(sql, values);
+      
+      if (rows.affectedRows === 0) {
+          return response.status(404).json({
+              sucesso: false,
+              mensagem: 'Farmácia não encontrada para exclusão.'
+          });
+      }
+
       return response.status(200).json({
         sucesso: true,
         mensagem: 'Farmácia apagada com sucesso.',
         dados: rows
       });
     } catch (error) {
+      // Erro comum de chave estrangeira (tentar apagar farmácia com vendas/produtos vinculados)
+      if (error.code === 'ER_ROW_IS_REFERENCED_2') {
+          return response.status(400).json({
+              sucesso: false,
+              mensagem: 'Não é possível apagar esta farmácia pois ela possui registros vinculados (medicamentos, vendas, etc).'
+          });
+      }
       return response.status(500).json({
         sucesso: false,
         mensagem: 'Erro na requisição.',
