@@ -2,25 +2,29 @@ const db = require('../dataBase/connection');
 
 module.exports = {
   // ==================================================================
-  // LISTAR TODAS AS AVALIAÇÕES
+  // LISTAR AVALIAÇÕES
   // ==================================================================
   async listarAvaliacao(request, response) {
     try {
-      // SQL: Seleciona apenas as colunas necessárias para evitar tráfego de dados inútil
-      const sql = 'SELECT ava_id, usuario_id, farmacia_id, ava_nota, ava_comentario FROM avaliacao;';
+      const { farmacia_id } = request.query; 
+
+      let sql = 'SELECT ava_id, usuario_id, farmacia_id, ava_nota, ava_comentario FROM avaliacao';
+      const values = [];
+
+      if (farmacia_id) {
+        sql += ' WHERE farmacia_id = ?';
+        values.push(farmacia_id);
+      }
       
-      // Executa a query no banco. O 'await' espera o banco responder.
-      const [rows] = await db.query(sql);
+      const [rows] = await db.query(sql, values);
       
-      // Retorna status 200 (OK) com a lista
       return response.status(200).json({
         sucesso: true,
         mensagem: 'Lista de avaliações recuperada com sucesso.',
-        itens: rows.length, // Conta quantos itens vieram
+        itens: rows.length,
         dados: rows
       });
     } catch (error) {
-      // Se der erro no banco, retorna 500 (Erro Interno)
       return response.status(500).json({
         sucesso: false,
         mensagem: 'Erro ao buscar avaliações.',
@@ -30,14 +34,13 @@ module.exports = {
   },
 
   // ==================================================================
-  // CADASTRAR UMA NOVA AVALIAÇÃO
+  // CADASTRAR OU EDITAR (UPSERT)
   // ==================================================================
   async cadastrarAvaliacao(request, response) {
     try {
-      // Desestruturação: retira as variáveis de dentro do corpo da requisição (JSON)
       const { usuario_id, farmacia_id, ava_nota, ava_comentario } = request.body;
 
-      // 1. VALIDAÇÃO BÁSICA: Verifica se campos obrigatórios existem
+      // 1. Validações
       if (!usuario_id || !farmacia_id || ava_nota === undefined) {
         return response.status(400).json({
           sucesso: false,
@@ -45,7 +48,6 @@ module.exports = {
         });
       }
 
-      // 2. VALIDAÇÃO DA NOTA: Garante que seja entre 1 e 5
       if (ava_nota < 1 || ava_nota > 5) {
         return response.status(400).json({
           sucesso: false,
@@ -53,25 +55,44 @@ module.exports = {
         });
       }
 
-      // SQL de Inserção com placeholders (?) para evitar SQL Injection
-      const sql = 'INSERT INTO avaliacao (usuario_id, farmacia_id, ava_nota, ava_comentario) VALUES (?, ?, ?, ?);';
-      const values = [usuario_id, farmacia_id, ava_nota, ava_comentario];
-      
-      // Executa a inserção
-      const [rows] = await db.query(sql, values);
+      // 2. VERIFICAÇÃO: O usuário já avaliou esta farmácia?
+      const sqlCheck = 'SELECT ava_id FROM avaliacao WHERE usuario_id = ? AND farmacia_id = ?';
+      const [existente] = await db.query(sqlCheck, [usuario_id, farmacia_id]);
 
-      // Retorna 201 (Created) ou 200 (OK)
-      return response.status(200).json({
+      // ==============================================================
+      // CENÁRIO A: JÁ EXISTE -> EDITAR (UPDATE)
+      // ==============================================================
+      if (existente.length > 0) {
+        const idExistente = existente[0].ava_id;
+        
+        const sqlUpdate = 'UPDATE avaliacao SET ava_nota = ?, ava_comentario = ? WHERE ava_id = ?';
+        await db.query(sqlUpdate, [ava_nota, ava_comentario, idExistente]);
+
+        return response.status(200).json({
+          sucesso: true,
+          mensagem: 'Sua avaliação anterior foi atualizada com sucesso!',
+          dados: { ava_id: idExistente, usuario_id, farmacia_id, ava_nota }
+        });
+      }
+
+      // ==============================================================
+      // CENÁRIO B: NÃO EXISTE -> CADASTRAR (INSERT)
+      // ==============================================================
+      const sqlInsert = 'INSERT INTO avaliacao (usuario_id, farmacia_id, ava_nota, ava_comentario) VALUES (?, ?, ?, ?);';
+      const [rows] = await db.query(sqlInsert, [usuario_id, farmacia_id, ava_nota, ava_comentario]);
+
+      return response.status(201).json({
         sucesso: true,
         mensagem: 'Avaliação cadastrada com sucesso.',
         dados: { 
-            ava_id: rows.insertId, // Retorna o ID que acabou de ser criado
+            ava_id: rows.insertId, 
             usuario_id,
             farmacia_id
         }
       });
+
     } catch (error) {
-      console.error('Erro no cadastro de avaliação:', error);
+      console.error('Erro no processo de avaliação:', error);
       return response.status(500).json({
         sucesso: false,
         mensagem: 'Erro ao salvar avaliação.',
@@ -81,14 +102,13 @@ module.exports = {
   },
 
   // ==================================================================
-  // EDITAR AVALIAÇÃO (ATUALIZAR NOTA OU COMENTÁRIO)
+  // EDITAR AVALIAÇÃO (Pelo ID, caso use rota específica)
   // ==================================================================
   async editarAvaliacao(request, response) {
     try {
       const { ava_nota, ava_comentario } = request.body;
-      const { ava_id } = request.params; // O ID vem da URL (ex: /avaliacao/5)
+      const { ava_id } = request.params;
 
-      // Validação da Nota na edição também
       if (ava_nota && (ava_nota < 1 || ava_nota > 5)) {
         return response.status(400).json({
           sucesso: false,
@@ -97,11 +117,8 @@ module.exports = {
       }
 
       const sql = 'UPDATE avaliacao SET ava_nota = ?, ava_comentario = ? WHERE ava_id = ?;';
-      const values = [ava_nota, ava_comentario, ava_id];
-      
-      const [result] = await db.query(sql, values);
+      const [result] = await db.query(sql, [ava_nota, ava_comentario, ava_id]);
 
-      // Verifica se alguma linha foi afetada (se o ID existia)
       if (result.affectedRows === 0) {
         return response.status(404).json({
             sucesso: false,
@@ -130,9 +147,7 @@ module.exports = {
       const { ava_id } = request.params;
 
       const sql = 'DELETE FROM avaliacao WHERE ava_id = ?;';
-      const values = [ava_id];
-      
-      const [result] = await db.query(sql, values);
+      const [result] = await db.query(sql, [ava_id]);
 
       if (result.affectedRows === 0) {
         return response.status(404).json({

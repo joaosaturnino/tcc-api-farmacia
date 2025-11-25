@@ -3,65 +3,112 @@ const { gerarUrl } = require('../utils/gerarUrl');
 const bcrypt = require('bcrypt');
 
 module.exports = {
-  // Lista farmácias com opção de limite aleatório (para destaques na home)
+  // ==================================================================
+  // 1. LISTAR FARMÁCIAS (CORRIGIDO: Agora calcula a média das notas)
+  // ==================================================================
   async listarFarmacias(request, response) {
     try {
       const { qtde } = request.query;
 
-      // Se passar o parâmetro 'qtde', retorna um número limitado de farmácias aleatórias
+      // 1. Definição da URL Base para as imagens (Ajuste o IP se necessário)
+      const baseUrlImagens = 'http://172.16.0.96:3334/public/logos/';
+
+      // 2. Colunas do SELECT
+      // COALESCE(AVG(...), 0) garante que retorne 0 se não tiver avaliação
+      const camposSelect = `
+        f.farm_id, 
+        f.farm_nome, 
+        f.farm_cnpj, 
+        f.farm_endereco, 
+        f.farm_telefone, 
+        f.farm_email, 
+        f.farm_logo, 
+        f.farm_cidade_id,
+        COALESCE(AVG(a.ava_nota), 0) as farm_nota
+      `;
+
+      // 3. Colunas do GROUP BY (OBRIGATÓRIO colocar todas do select aqui para evitar Erro 500)
+      const camposGroupBy = `
+        f.farm_id, 
+        f.farm_nome, 
+        f.farm_cnpj, 
+        f.farm_endereco, 
+        f.farm_telefone, 
+        f.farm_email, 
+        f.farm_logo, 
+        f.farm_cidade_id
+      `;
+
+      let sql;
+      let params = [];
+
+      // --- Lógica da Query ---
       if (qtde) {
-        const sqlQtde = `SELECT farm_id, farm_nome, farm_cnpj, farm_endereco, farm_telefone, 
-                        farm_email, farm_logo, farm_cidade_id 
-                        FROM farmacia ORDER BY RAND() LIMIT ?;`;
-        // parseInt garante que o limite seja um número inteiro
-        const [rowsQtde] = await db.query(sqlQtde, [parseInt(qtde)]); 
-        
-        // Mapeia os resultados para adicionar a URL completa da logo
-        const farmaciasComUrlQtde = rowsQtde.map(farmacia => ({
-          ...farmacia,
-          farm_logo_url: gerarUrl(farmacia.farm_logo, 'logos', 'default-logo.png')
-        }));
-        
-        return response.status(200).json({
-          sucesso: true,
-          mensagem: `Lista de farmácias (limitada a ${qtde})`,
-          itens: rowsQtde.length,
-          dados: farmaciasComUrlQtde
-        });
+        sql = `
+          SELECT ${camposSelect}
+          FROM farmacia f  -- Verifique se no banco é 'farmacias' ou 'farmacia'
+          LEFT JOIN avaliacao a ON f.farm_id = a.farmacia_id
+          GROUP BY ${camposGroupBy}
+          ORDER BY RAND() 
+          LIMIT ?;
+        `;
+        params = [parseInt(qtde)];
+      } else {
+        sql = `
+          SELECT ${camposSelect}
+          FROM farmacia f
+          LEFT JOIN avaliacao a ON f.farm_id = a.farmacia_id
+          GROUP BY ${camposGroupBy};
+        `;
       }
 
-      // Se não passar 'qtde', retorna todas as farmácias
-      const sql = `SELECT farm_id, farm_nome, farm_cnpj, farm_endereco, farm_telefone, 
-                  farm_email, farm_logo, farm_cidade_id FROM farmacia;`;
-      const [rows] = await db.query(sql);
+      // Executa a query
+      const [rows] = await db.query(sql, params);
       
-      const farmaciasComUrl = rows.map(farmacia => ({
-        ...farmacia,
-        farm_logo_url: gerarUrl(farmacia.farm_logo, 'logos', 'default-logo.png')
-      }));
+      // 4. Processamento dos dados (Formatação da nota e URL da imagem)
+      const farmaciasFormatadas = rows.map(item => {
+        return {
+          ...item,
+          // Formata a nota para 1 casa decimal (ex: 4.5)
+          farm_nota: parseFloat(item.farm_nota).toFixed(1),
+          // Cria a URL completa da logo se ela existir
+          farm_logo_url: item.farm_logo ? `${baseUrlImagens}${item.farm_logo}` : null
+        };
+      });
       
       return response.status(200).json({
         sucesso: true,
-        mensagem: 'Lista de farmácias',
+        mensagem: qtde ? `Lista limitada a ${qtde} farmácias.` : 'Lista completa de farmácias.',
         itens: rows.length,
-        dados: farmaciasComUrl
+        dados: farmaciasFormatadas
       });
+
     } catch (error) {
+      console.error('Erro no listarFarmacias:', error); 
       return response.status(500).json({
         sucesso: false,
-        mensagem: 'Erro na requisição.',
+        mensagem: 'Erro ao buscar farmácias.',
         dados: error.message
       });
     }
   },
 
-  // Busca os detalhes de uma farmácia específica pelo ID
+  // ==================================================================
+  // 2. DETALHES DA FARMÁCIA
+  // ==================================================================
   async listarFarmaciaPorId(request, response) {
     try {
       const { farm_id } = request.params;
-      const sql = `SELECT farm_id, farm_nome, farm_cnpj, farm_endereco, farm_telefone, 
-                  farm_email, farm_logo, farm_cidade_id 
-                  FROM farmacia WHERE farm_id = ?;`;
+      // Também podemos adicionar a média aqui se você quiser mostrar na tela de detalhes
+      const sql = `
+        SELECT f.farm_id, f.farm_nome, f.farm_cnpj, f.farm_endereco, f.farm_telefone, 
+               f.farm_email, f.farm_logo, f.farm_cidade_id,
+               COALESCE(AVG(a.ava_nota), 0) as media_avaliacao
+        FROM farmacia f
+        LEFT JOIN avaliacao a ON f.farm_id = a.farmacia_id
+        WHERE f.farm_id = ?
+        GROUP BY f.farm_id;`;
+        
       const [rows] = await db.query(sql, [farm_id]);
 
       if (rows.length === 0) {
@@ -74,6 +121,7 @@ module.exports = {
       const farmacia = rows[0];
       const farmaciaComUrl = {
         ...farmacia,
+        media_avaliacao: parseFloat(farmacia.media_avaliacao).toFixed(1),
         farm_logo_url: gerarUrl(farmacia.farm_logo, 'logos', 'default-logo.png')
       };
       
@@ -91,13 +139,13 @@ module.exports = {
     }
   },
 
-  // Lista os medicamentos vendidos por uma farmácia específica
+  // ==================================================================
+  // 3. LISTAR MEDICAMENTOS DA FARMÁCIA
+  // ==================================================================
   async listarMedicamentosPorFarmacia(request, response) {
     try {
       const { farm_id } = request.params;
 
-      // Join entre medpreco (tabela de ligação/preços), medicamento e laboratórios
-      // Correção: Usando med.med_imagem para garantir que pegamos a imagem do cadastro do remédio
       const sql = `
         SELECT 
           med.med_id as id, 
@@ -133,12 +181,13 @@ module.exports = {
     }
   },
 
-  // Cadastra uma nova farmácia
+  // ==================================================================
+  // 4. CADASTRO
+  // ==================================================================
   async cadastrarFarmacias(request, response) {
     try {
       const { farm_nome, farm_cnpj, farm_endereco, farm_telefone, farm_email, farm_senha, farm_cidade_id } = request.body;
       
-      // Validação básica de campos obrigatórios
       if (!farm_nome || !farm_email || !farm_senha) {
         return response.status(400).json({
           sucesso: false,
@@ -151,7 +200,6 @@ module.exports = {
         nomeArquivo = request.file.filename;
       }
 
-      // Criptografa a senha antes de salvar no banco
       const hashedSenha = await bcrypt.hash(farm_senha, 10);
 
       const sql = `INSERT INTO farmacia (farm_nome, farm_cnpj, farm_endereco, farm_telefone, 
@@ -161,7 +209,6 @@ module.exports = {
       
       const [rows] = await db.query(sql, values);
       
-      // Gera a URL da logo recém cadastrada para retornar ao front-end
       const farmaciaUrl = gerarUrl(nomeArquivo, 'logos', 'default-logo.png');
       
       return response.status(201).json({
@@ -183,13 +230,14 @@ module.exports = {
     }
   },
 
-  // Edita dados de uma farmácia existente
+  // ==================================================================
+  // 5. EDIÇÃO
+  // ==================================================================
   async editarFarmacias(request, response) {
     try {
       const { farm_id } = request.params;
       const camposRecebidos = request.body; 
       
-      // Se não enviou campos nem arquivo, retorna erro
       if (Object.keys(camposRecebidos).length === 0 && !request.file) {
         return response.status(400).json({
           sucesso: false,
@@ -201,10 +249,8 @@ module.exports = {
       const values = [];
       let novoNomeArquivo = null;
 
-      // Itera sobre os campos recebidos para montar a query dinâmica
       for (const [key, value] of Object.entries(camposRecebidos)) {
         if (value !== null && value !== undefined) {
-          // Se for atualização de senha, criptografa a nova senha
           if (key === 'farm_senha' && value && value.trim() !== '') {
             const hashed = await bcrypt.hash(value, 10);
             camposParaAtualizar.push(`${key} = ?`);
@@ -216,7 +262,6 @@ module.exports = {
         }
       }
 
-      // Se enviou nova logo, atualiza o campo farm_logo
       if (request.file) {
         novoNomeArquivo = request.file.filename;
         camposParaAtualizar.push(`farm_logo = ?`);
@@ -234,7 +279,6 @@ module.exports = {
       const sql = `UPDATE farmacia SET ${camposParaAtualizar.join(', ')} WHERE farm_id = ?;`;
       await db.query(sql, values);
 
-      // Recupera a logo atual (nova ou a que já estava) para retornar a URL correta
       let nomeLogoFinal = novoNomeArquivo;
       if (!nomeLogoFinal) {
           const [result] = await db.query('SELECT farm_logo FROM farmacia WHERE farm_id = ?', [farm_id]);
@@ -262,7 +306,9 @@ module.exports = {
     }
   },
   
-  // Verifica se um e-mail existe (útil para recuperação de senha)
+  // ==================================================================
+  // 6. UTILITÁRIOS (Verificar Email, Senha, Delete)
+  // ==================================================================
   async verificarEmail(request, response) {
     try {
       const { farm_email } = request.body;
@@ -284,7 +330,6 @@ module.exports = {
     }
   },
 
-  // Redefine senha via e-mail (fluxo de "esqueci minha senha")
   async redefinirSenhaPorEmail(request, response) {
     try {
       const { farm_email, nova_senha } = request.body;
@@ -311,7 +356,6 @@ module.exports = {
     }
   },
 
-  // Altera senha logada (exige senha atual)
   async alterarSenha(request, response) {
     try {
       const { farm_id } = request.params;
@@ -325,20 +369,17 @@ module.exports = {
         return response.status(400).json({ sucesso: false, mensagem: 'A senha deve ter no mínimo 6 caracteres.' });
       }
 
-      // Busca a senha atual (hash) no banco
       const [rows] = await db.query('SELECT farm_senha FROM farmacia WHERE farm_id = ?;', [farm_id]);
       if (rows.length === 0) {
         return response.status(404).json({ sucesso: false, mensagem: 'Farmácia não encontrada.' });
       }
 
       const atualHash = rows[0].farm_senha;
-      // Compara a senha enviada com o hash do banco
       const match = await bcrypt.compare(senha_atual, atualHash);
       if (!match) {
         return response.status(401).json({ sucesso: false, mensagem: 'Senha atual incorreta.' });
       }
 
-      // Se correta, gera hash da nova senha e atualiza
       const novaHash = await bcrypt.hash(nova_senha, 10);
       const sql = 'UPDATE farmacia SET farm_senha = ? WHERE farm_id = ?;';
       await db.query(sql, [novaHash, farm_id]);
@@ -349,7 +390,6 @@ module.exports = {
     }
   },
 
-  // Remove uma farmácia
   async apagarFarmacias(request, response) {
     try {
       const { farm_id } = request.params;
@@ -370,11 +410,10 @@ module.exports = {
         dados: rows
       });
     } catch (error) {
-      // Erro comum de chave estrangeira (tentar apagar farmácia com vendas/produtos vinculados)
       if (error.code === 'ER_ROW_IS_REFERENCED_2') {
           return response.status(400).json({
               sucesso: false,
-              mensagem: 'Não é possível apagar esta farmácia pois ela possui registros vinculados (medicamentos, vendas, etc).'
+              mensagem: 'Não é possível apagar esta farmácia pois ela possui registros vinculados.'
           });
       }
       return response.status(500).json({
