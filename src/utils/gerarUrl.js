@@ -13,7 +13,7 @@ const PUBLIC_ROOT_PATH = path.join(process.cwd(), 'public');
  * IMPORTANTE: Se não houver variável de ambiente, usa o IP da máquina.
  * 'localhost' não funciona no Android/Expo, tem que ser o IP da rede (IPv4).
  */
-const API_URL = process.env.API_BASE_URL || 'http://192.168.200.27:3334';
+const API_URL = process.env.API_BASE_URL || 'http://172.16.0.34:3334';
 
 /**
  * Gera uma URL pública completa para um recurso.
