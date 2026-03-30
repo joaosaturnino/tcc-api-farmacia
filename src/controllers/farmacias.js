@@ -11,7 +11,7 @@ module.exports = {
       const { qtde } = request.query;
 
       // 1. Definição da URL Base para as imagens (Ajuste o IP se necessário)
-      const baseUrlImagens = 'http://172.16.0.34:3334/public/logos/';
+      const baseUrlImagens = 'http://10.101.130.164:3334/public/logos/';
 
       // 2. Colunas do SELECT
       // COALESCE(AVG(...), 0) garante que retorne 0 se não tiver avaliação

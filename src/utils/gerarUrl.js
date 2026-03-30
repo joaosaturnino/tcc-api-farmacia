@@ -13,7 +13,7 @@ const PUBLIC_ROOT_PATH = path.join(process.cwd(), 'public');
  * IMPORTANTE: Se não houver variável de ambiente, usa o IP da máquina.
  * 'localhost' não funciona no Android/Expo, tem que ser o IP da rede (IPv4).
  */
-const API_URL = process.env.API_BASE_URL || 'http://172.16.0.34:3334';
+const API_URL = process.env.API_BASE_URL || 'http://10.101.130.164:3334';
 
 /**
  * Gera uma URL pública completa para um recurso.
@@ -22,7 +22,7 @@ const API_URL = process.env.API_BASE_URL || 'http://172.16.0.34:3334';
  * @param {string} nomeArquivo O nome do arquivo salvo no banco (ex: "produto-123.jpg").
  * @param {string} pasta A subpasta dentro de 'public/' (ex: "produtos").
  * @param {string} arquivoPadrao O nome do arquivo fallback (ex: "padrao.png").
- * @returns {string} A URL completa (ex: 'http://192.168.200.27:3334/public/produtos/foto.jpg').
+ * @returns {string} A URL completa (ex: 'http://172.16.0.32:3334/public/produtos/foto.jpg').
  */
 function gerarUrl(nomeArquivo, pasta, arquivoPadrao) {
     
@@ -46,7 +46,7 @@ function gerarUrl(nomeArquivo, pasta, arquivoPadrao) {
     const caminhoWeb = caminhoRelativo.replace(/\\/g, '/');
 
     // 4. Concatena a URL do servidor com o caminho da imagem
-    // Retorna ex: http://192.168.200.27:3334/public/produtos/padrao.png
+    // Retorna ex: http://172.16.0.32:3334/public/produtos/padrao.png
     try {
         // new URL lida corretamente com barras duplas e formatação
         const urlCompleta = new URL(caminhoWeb, API_URL);

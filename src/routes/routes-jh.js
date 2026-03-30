@@ -1,13 +1,12 @@
 const express = require("express");
 const router = express.Router();
 
-// Importação do Helper de Upload (Middleware para fotos)
+// Importação do Helper de Upload
 const uploadImage = require("../middleware/uploadHelper");
 
 // ==================================================================
 // IMPORTAÇÃO DOS CONTROLLERS
 // ==================================================================
-// Os controllers contêm a lógica de negócio (o que acontece quando a rota é acessada)
 const CidadesController = require("../controllers/cidades");
 const FarmaciasController = require("../controllers/farmacias");
 const FavoritosController = require("../controllers/favoritos");
@@ -24,100 +23,70 @@ const ListarUnicoController = require("../controllers/listagem");
 const ListarParametroController = require("../controllers/parametros");
 const LoginFarmController = require("../controllers/loginFarm");
 const CategoriaController = require('../controllers/categoria');
+const reservaController = require('../controllers/reservas');
+const ComunidadeController = require("../controllers/comunidade");
+const AlertasController = require("../controllers/alertas"); // <--- IMPORTADO AGORA
 
 // ==================================================================
-// CONFIGURAÇÃO DO UPLOAD DE ARQUIVOS (MULTER)
+// CONFIGURAÇÃO DO UPLOAD (MULTER)
 // ==================================================================
-// Define onde as imagens serão salvas.
-// uploadLogo -> salva em /public/logos
-// uploadMedicamento -> salva em /public/medicamentos
 const uploadLogo = uploadImage('logos');
 const uploadMedicamento = uploadImage('medicamentos');
-
 
 // ==================================================================
 // DEFINIÇÃO DAS ROTAS
 // ==================================================================
 
-// --------------------------------------------------
+/// --------------------------------------------------
 // 1. USUÁRIOS
 // --------------------------------------------------
-// OBS: Rotas estáticas (sem :id) devem vir antes das dinâmicas.
-
-// Autenticação e Segurança
 router.post("/usuarios/login", UsuariosController.loginUsuario);
 router.put('/usuarios/redefinir', UsuariosController.redefinirSenha); 
-
-// CRUD Básico
-router.get("/usuarios", UsuariosController.listarUsuario); // Listar todos
-router.post("/usuarios", UsuariosController.cadastrarUsuario); // Criar novo
-
-// Operações com ID (Dinâmicas)
-router.get('/usuarios/:usu_id', UsuariosController.listarUsuarioPorId); // Detalhes
-router.put('/usuarios/:usu_id', UsuariosController.editarUsuario);      // Atualizar
-router.delete("/usuarios/:usu_id", UsuariosController.apagarUsuario);   // Deletar
+router.get("/usuarios", UsuariosController.listarUsuario); 
+router.post("/usuarios", UsuariosController.cadastrarUsuario); 
+router.get('/usuarios/:usu_id', UsuariosController.listarUsuarioPorId); 
+router.put('/usuarios/:usu_id', UsuariosController.editarUsuario);      
+router.delete("/usuarios/:usu_id", UsuariosController.apagarUsuario);
 
 
 // --------------------------------------------------
 // 2. CIDADES
 // --------------------------------------------------
 router.get("/cidades", CidadesController.listarCidade);
-router.get("/ufs", CidadesController.listarUfs); // Rota específica antes de :cidade_id
+router.get("/ufs", CidadesController.listarUfs); 
 router.post("/cidades", CidadesController.cadastrarCidade);
-
-// Rotas Específicas de Busca
 router.get("/cidade", ListarParametroController.listarCidadeParametro);
 router.get("/cidade/cidadelimit", ListarUnicoController.listarLimiteCidade);
-
-// Rotas com ID
-router.patch("/cidades/:cidade_id", CidadesController.editarCidade); // Patch atualiza parcialmente
+router.patch("/cidades/:cidade_id", CidadesController.editarCidade); 
 router.delete("/cidades/:cidade_id", CidadesController.apagarCidade);
 router.get("/cidades/:cidade_id", ListarUnicoController.listarUnicaCidade);
 
 
-// --------------------------------------------------
+/// --------------------------------------------------
 // 3. FARMÁCIAS
 // --------------------------------------------------
 router.get('/farmacias', FarmaciasController.listarFarmacias); 
-
-// Rotas de recuperação de conta (Devem vir antes de /:farm_id)
 router.post("/farmacias/verificar-email", FarmaciasController.verificarEmail);
 router.post("/farmacias/redefinir-senha-por-email", FarmaciasController.redefinirSenhaPorEmail);
-
-// Cadastro com Upload de Imagem (farm_logo)
 router.post("/farmacias", uploadLogo.single('farm_logo'), FarmaciasController.cadastrarFarmacias);
-
-// Operações com ID
 router.get('/farmacias/:farm_id', FarmaciasController.listarFarmaciaPorId);
 router.put("/farmacias/:farm_id", uploadLogo.single('farm_logo'), FarmaciasController.editarFarmacias); 
 router.delete("/farmacias/:farm_id", FarmaciasController.apagarFarmacias);
-router.put('/farmacias/:farm_id/senha', FarmaciasController.alterarSenha); // Rota aninhada
-
-// Rota Relacional (Medicamentos DE UMA Farmácia)
+router.put('/farmacias/:farm_id/senha', FarmaciasController.alterarSenha); 
 router.get('/farmacias/:farm_id/medicamentos', FarmaciasController.listarMedicamentosPorFarmacia);
 
 
 // --------------------------------------------------
 // 4. MEDICAMENTOS
 // --------------------------------------------------
-// ATENÇÃO: A ordem aqui é crítica. /todos e /tipo/:id devem vir antes de /:med_id
-
 router.get("/medicamentos", MedicamentosController.listarMedicamentos);
-
-// Rotas Específicas de Listagem
 router.get('/medicamentos/todos', MedicamentosController.listarTodosMedicamentosPaginado);
-router.get('/paginado', MedicamentosController.listarTodosMedicamentosBusca); // Rota na raiz (cuidado com conflitos futuros)
+router.get('/paginado', MedicamentosController.listarTodosMedicamentosBusca); 
 router.get('/medicamentos/tipo/:tipo_id', CategoriaController.listarCategoria);
-
-// Cadastro com Upload (med_imagem)
 router.post("/medicamentos", uploadMedicamento.single('med_imagem'), MedicamentosController.cadastrarMedicamentos);
-
-// Operações com ID
 router.get("/medicamentos/:med_id", MedicamentosController.listarMedicamentoPorId);
 router.put("/medicamentos/:med_id", uploadMedicamento.single('med_imagem'), MedicamentosController.editarMedicamentos); 
 router.delete("/medicamentos/:med_id", MedicamentosController.apagarMedicamentos);
-
-// Rota Relacional (Farmácias QUE TEM um Medicamento)
 router.get('/medicamentos/:med_id/farmacias', MedicamentosController.listarFarmaciasPorMedicamento);
 
 
@@ -204,4 +173,40 @@ router.get('/favoritos/usuario/:usuario_id', FavoritosController.listarFavoritos
 // Logins Administrativos
 router.post("/loginfarm", LoginFarmController.loginFarm);
 router.post("/loginfunc", LoginFarmController.loginFunc);
+
+// --------------------------------------------------
+// 10. RESERVAS (Adicionando as rotas que faltavam)
+// --------------------------------------------------
+// Prefixo '/reservas' adicionado para bater com seu Frontend
+
+// Criar nova reserva
+router.post('/reservas', reservaController.createReserva);
+
+// Histórico do Usuário
+router.get('/reservas/usuario/:id', reservaController.getReservasByUsuario);
+
+// Painel da Farmácia (Esta é a rota que estava dando erro 404)
+router.get('/reservas/farmacia/:id', reservaController.getReservasByFarmacia);
+
+// Rota para Atualizar Status
+router.put('/reservas/:id/status', reservaController.updateStatusReserva);
+
+router.delete('/reservas/:id', reservaController.ocultarReserva); // CORRETO: Nome novo da função // Agora aponta para a nova função // <--- ADICIONE ISSO
+
+// --- 11. COMUNIDADE ---
+// Note que adicionei ?usuario_id na listagem, mas isso é tratado no controller via query params
+router.get("/comunidade", ComunidadeController.listarPosts); 
+router.post("/comunidade", ComunidadeController.criarPost);
+router.delete("/comunidade/:id", ComunidadeController.excluirPost); // Rota de Excluir Post
+router.post("/comunidade/:id/like", ComunidadeController.toggleLike); // Agora é Toggle
+
+// Comentários
+router.get("/comunidade/:postId/comentarios", ComunidadeController.listarComentarios);
+router.post("/comunidade/comentarios", ComunidadeController.criarComentario);
+router.delete("/comunidade/comentarios/:id", ComunidadeController.excluirComentario); // Rota de Excluir Comentário
+
+/// --- ROTAS DE ALERTAS E NOTIFICAÇÕES ---
+router.post('/alertas', AlertasController.criarAlerta);
+router.get('/notificacoes/:usuario_id', AlertasController.listarNotificacoes);
+router.put('/notificacoes/:id/lida', AlertasController.marcarLida);
 module.exports = router;
